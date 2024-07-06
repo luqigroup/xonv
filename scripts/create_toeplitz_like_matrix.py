@@ -5,7 +5,6 @@ import numpy as np
 from typing import Tuple
 
 # Constants
-
 # Input image size.
 INPUT_SIZE: Tuple[int, int] = (8, 8)
 
@@ -83,9 +82,7 @@ def plot_toeplitz_matrix(toeplitz_matrix: np.ndarray) -> None:
                vmin=-1.0,
                vmax=1.0)
     plt.colorbar()
-    plt.title("Toeplitz-like Matrix for Xonv2D Layer")
-    plt.xlabel("Output pixel index")
-    plt.ylabel("Input pixel index")
+    plt.title("Toeplitz-like matrix for Xonv2D layer")
     plt.tight_layout()
     plt.show()
 
