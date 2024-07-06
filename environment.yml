@@ -1,0 +1,16 @@
+name: extconv
+channels:
+  - pytorch
+  - nvidia
+dependencies:
+  - pytorch
+  - pytorch-cuda=12.1
+  - pip
+  - pip:
+    - matplotlib
+    - mpire
+    - numpy
+    - tqdm
+    - gitpython
+    - h5py
+    - seaborn

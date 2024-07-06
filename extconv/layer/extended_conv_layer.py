@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from typing import Tuple
 
 
-class EfficientSpatiallyVaryingConv2d(nn.Module):
+class ExtenedConv2d(nn.Module):
     """
     A 2D convolutional layer with spatially varying kernel.
 
@@ -38,7 +38,7 @@ class EfficientSpatiallyVaryingConv2d(nn.Module):
         kernel_size: int,
         input_size: Tuple[int, int],
     ):
-        super(EfficientSpatiallyVaryingConv2d, self).__init__()
+        super(ExtenedConv2d, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.kernel_size = kernel_size
@@ -129,8 +129,12 @@ if __name__ == "__main__":
     out_channels = 16
     kernel_size = 3
 
-    layer = EfficientSpatiallyVaryingConv2d(in_channels, out_channels,
-                                            kernel_size, input_size)
+    layer = ExtenedConv2d(
+        in_channels,
+        out_channels,
+        kernel_size,
+        input_size,
+    )
     input_tensor = torch.randn(1, in_channels, *input_size)
     output = layer(input_tensor)
     print(output.shape)  # Should be [1, 16, 32, 32]

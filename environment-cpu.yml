@@ -1,0 +1,15 @@
+name: extconv
+channels:
+  - pytorch
+dependencies:
+  - pytorch
+  - pip
+  - cpuonly
+  - pip:
+    - matplotlib
+    - mpire
+    - numpy
+    - tqdm
+    - gitpython
+    - h5py
+    - seaborn
