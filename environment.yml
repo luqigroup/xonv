@@ -1,4 +1,4 @@
-name: extconv
+name: xonv
 channels:
   - pytorch
   - nvidia

@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from typing import Tuple
 
 
-class ExtenedConv2d(nn.Module):
+class Xonv2D(nn.Module):
     """
     A 2D convolutional layer with spatially varying kernel.
 
@@ -24,7 +24,7 @@ class ExtenedConv2d(nn.Module):
 
     Examples:
         >>> input_size = (32, 32)
-        >>> layer = EfficientSpatiallyVaryingConv2d(3, 16, 3, input_size)
+        >>> layer = Xonv2D(3, 16, 3, input_size)
         >>> input_tensor = torch.randn(1, 3, 32, 32)
         >>> output = layer(input_tensor)
         >>> print(output.shape)
@@ -38,7 +38,7 @@ class ExtenedConv2d(nn.Module):
         kernel_size: int,
         input_size: Tuple[int, int],
     ):
-        super(ExtenedConv2d, self).__init__()
+        super(Xonv2D, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.kernel_size = kernel_size
@@ -129,12 +129,7 @@ if __name__ == "__main__":
     out_channels = 16
     kernel_size = 3
 
-    layer = ExtenedConv2d(
-        in_channels,
-        out_channels,
-        kernel_size,
-        input_size,
-    )
+    layer = Xonv2D(in_channels, out_channels, kernel_size, input_size)
     input_tensor = torch.randn(1, in_channels, *input_size)
     output = layer(input_tensor)
     print(output.shape)  # Should be [1, 16, 32, 32]
