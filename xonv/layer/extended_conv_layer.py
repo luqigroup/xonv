@@ -66,6 +66,9 @@ class Xonv2D(nn.Module):
                 out_channels,
             ))
 
+        # Initialize weights using Kaiming uniform initialization.
+        torch.nn.init.kaiming_uniform_(self.weights, a=1.)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of the layer.
