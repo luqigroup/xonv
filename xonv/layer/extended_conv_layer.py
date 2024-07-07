@@ -82,7 +82,10 @@ class Xonv2D(nn.Module):
         pad = self.kernel_size // 2
 
         # Pad the input tensor.
-        x_padded = F.pad(x, (pad, pad, pad, pad))
+        if self.kernel_size % 2 == 1:
+            x_padded = F.pad(x, (pad, pad, pad, pad))
+        else:
+            x_padded = F.pad(x, (pad - 1, pad, pad - 1, pad))
 
         # Extract patches from the padded input.
         # Shape: (batch_size, height, width, in_channels, kernel_size,

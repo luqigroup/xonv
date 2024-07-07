@@ -45,7 +45,7 @@ print(output.shape)  # Should be [1, 16, 32, 32]
 To visualize the toeplitz-like matrix associated with the convolutional layer, run the following command:
 
 ```bash
-python create_toeplitz_like_matrix.py
+python scripts/create_toeplitz_like_matrix.py
 ```
 
 

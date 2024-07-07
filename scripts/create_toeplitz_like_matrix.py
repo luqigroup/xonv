@@ -68,20 +68,14 @@ def plot_toeplitz_matrix(toeplitz_matrix: np.ndarray) -> None:
     Args:
         toeplitz_matrix (np.ndarray): The Toeplitz-like matrix to be plotted.
     """
-    # Create a mask for elements that are 0.
-    mask = (toeplitz_matrix == 0.)
-
-    # Replace 0. elements with np.nan
-    toeplitz_matrix_masked = toeplitz_matrix.copy()
-    toeplitz_matrix_masked[mask] = np.nan
 
     plt.figure(dpi=200)
-    plt.imshow(toeplitz_matrix_masked,
-               cmap="tab20",
+    plt.imshow(toeplitz_matrix,
+               cmap="RdGy",
                aspect='equal',
-               vmin=-1.0,
-               vmax=1.0)
-    plt.colorbar()
+               vmin=-2.0,
+               vmax=2.0)
+    plt.colorbar(pad=0.01)
     plt.title("Toeplitz-like matrix for Xonv2D layer")
     plt.tight_layout()
     plt.show()
