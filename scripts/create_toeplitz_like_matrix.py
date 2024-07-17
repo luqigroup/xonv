@@ -1,8 +1,10 @@
+from typing import Tuple
+
 import torch
 import matplotlib.pyplot as plt
-from xonv.layer import Xonv2D
 import numpy as np
-from typing import Tuple
+
+from xonv.layer import Xonv2D
 
 # Constants
 # Input image size.
@@ -91,7 +93,7 @@ def plot_toeplitz_matrix(toeplitz_matrix: np.ndarray) -> None:
         toeplitz_matrix (np.ndarray): The Toeplitz-like matrix to be plotted.
     """
 
-    plt.figure(dpi=200)
+    plt.figure(dpi=150)
     plt.imshow(toeplitz_matrix['xonv'],
                cmap="RdGy",
                aspect='equal',
@@ -101,7 +103,7 @@ def plot_toeplitz_matrix(toeplitz_matrix: np.ndarray) -> None:
     plt.title("Toeplitz-like matrix for Xonv2D layer")
     plt.tight_layout()
 
-    plt.figure(dpi=200)
+    plt.figure(dpi=150)
     plt.imshow(toeplitz_matrix['conv'],
                cmap="RdGy",
                aspect='equal',
