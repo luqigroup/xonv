@@ -18,13 +18,19 @@ def filter_normalization(
     ):
 
         # Compute norms across all dimensions >= 1
-        rand_direction_norms = rand_direction.norm(
-            dim=list(range(1, rand_direction.ndim)),
-            keepdim=True,
+        tmp = rand_direction.clone()
+        tmp = tmp.view(tmp.size(0), -1) if len(tmp.size()) > 1 else tmp
+
+        rand_direction_norms = tmp.norm(
+            dim=-1,
+            keepdim=True if len(tmp.size()) > 1 else False,
         )
+
+        param_data = param_data.view(param_data.size(0), -1) if len(
+            param_data.size()) > 1 else param_data
         param_data_norms = param_data.norm(
-            dim=list(range(1, param_data.ndim)),
-            keepdim=True,
+            dim=-1,
+            keepdim=True if len(param_data.size()) > 1 else False,
         )
 
         # Normalize the random direction tensor

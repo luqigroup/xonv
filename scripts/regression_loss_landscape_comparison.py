@@ -2,7 +2,8 @@
 # pylint: disable=invalid-name
 """A script that uses extended convolutional layers for regression.
 """
-from typing import Dict, Tuple
+from typing import Dict
+import os
 
 import argparse
 from tqdm import tqdm
@@ -17,10 +18,10 @@ from xonv.utils import (
     checkpointsdir,
 )
 
-CONFIG_FILE = 'gaussian_affine_normalizing_flow.json'
+CONFIG_FILE = 'regression_loss_landscape_comparison.json'
 
 
-class GaussianExample:
+class RegressionLossLandscape:
     """An example for performing regression with the Xonv2D layer.
 
     Attributes:
@@ -53,11 +54,11 @@ class GaussianExample:
 
         self.true_conv_weights = dict(self.conv_model.named_parameters())
 
-        self.x = 1e-2 * torch.randn(
+        self.x = 1e-2 * torch.randn([
             args.batchsize,
             args.num_channels,
             *args.input_size,
-        ).to(self.device)
+        ]).to(self.device)
         self.y = self.conv_model(self.x)
 
     def conv_regression_loss(
@@ -84,7 +85,7 @@ class GaussianExample:
         xonv_model = Xonv2dRegressionModel(
             args.num_channels,
             args.kernel_size,
-            *args.input_size,
+            args.input_size,
             args.num_layers,
         ).to(self.device)
 
@@ -125,13 +126,13 @@ class GaussianExample:
 
         # Initialize the loss landscape tensor.
         loss_landscape = torch.zeros(
-            [args.nsamples, args.nsamples],
+            [args.vis_res, args.vis_res],
             device=self.device,
         )
 
         # Create mesh grid of loss landscape.
-        param_grid_alpha = torch.linspace(*args.alpha_range, args.nsamples)
-        param_grid_beta = torch.linspace(*args.beta_range, args.nsamples)
+        param_grid_alpha = torch.linspace(*args.vis_range, args.vis_res)
+        param_grid_beta = torch.linspace(*args.vis_range, args.vis_res)
 
         for i, alpha in enumerate(tqdm(param_grid_alpha)):
             for j, beta in enumerate(param_grid_beta):
@@ -158,13 +159,13 @@ class GaussianExample:
 
         # Initialize the loss landscape tensor.
         loss_landscape = torch.zeros(
-            [args.nsamples, args.nsamples],
+            [args.vis_res, args.vis_res],
             device=self.device,
         )
 
         # Create mesh grid of loss landscape.
-        param_grid_alpha = torch.linspace(*args.alpha_range, args.nsamples)
-        param_grid_beta = torch.linspace(*args.beta_range, args.nsamples)
+        param_grid_alpha = torch.linspace(*args.vis_range, args.vis_res)
+        param_grid_beta = torch.linspace(*args.vis_range, args.vis_res)
 
         for i, alpha in enumerate(tqdm(param_grid_alpha)):
             for j, beta in enumerate(param_grid_beta):
@@ -194,3 +195,28 @@ if '__main__' == __name__:
     # Random seed.
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
+
+    # Initialize the RegressionLossLandscape object.
+    reg_loss_landscape = RegressionLossLandscape(args)
+
+    # Compute the loss landscape.
+    conv_loss_landscape = reg_loss_landscape.compute_conv_loss_landscape(args)
+    xonv_loss_landscape = reg_loss_landscape.compute_xonv_loss_landscape(args)
+
+    torch.save(
+        {
+            'true_conv_weights': reg_loss_landscape.true_conv_weights,
+            'x': reg_loss_landscape.x,
+            'y': reg_loss_landscape.y,
+            'conv_loss_landscape': conv_loss_landscape,
+            'xonv_loss_landscape': xonv_loss_landscape,
+            'args': args,
+        },
+        os.path.join(
+            checkpointsdir(args.experiment),
+            'loss_landscapes.pth',
+        ),
+    )
+
+    from IPython import embed
+    embed()

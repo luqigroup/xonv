@@ -1,5 +1,18 @@
 import argparse
 import json
+import hashlib
+
+
+def shorten_filename(filename, max_length=255):
+    """Shorten the filename using a hash if it exceeds max_length."""
+    if len(filename) > max_length:
+        hash_object = hashlib.sha1(filename.encode())
+        hash_filename = hash_object.hexdigest()
+        extension = filename.split('.')[-1] if '.' in filename else ''
+        short_filename = (f"{filename[:max_length - len(hash_filename) - 1]}"
+                          f".{hash_filename}" if extension else hash_filename)
+        return short_filename
+    return filename
 
 
 def read_config(filename):
@@ -33,9 +46,16 @@ def make_experiment_name(args):
                 'upload_results',
         ]:
             experiment_name += key + '-{}_'.format(value)
-    return experiment_name[:-1].replace(' ', '').replace(',', '-')
+    experiment_name = experiment_name[:-1].replace(' ', '').replace(',', '-')
+    return shorten_filename(experiment_name)
 
 
 def process_sequence_arguments(args):
     """Process sequence arguments to remove spaces and split by comma."""
+    if hasattr(args, 'vis_range'):
+        args.vis_range = args.vis_range.replace(' ', '').split(',')
+        args.vis_range = [float(_) for _ in args.vis_range]
+    if hasattr(args, 'input_size'):
+        args.input_size = args.input_size.replace(' ', '').split(',')
+        args.input_size = [int(_) for _ in args.input_size]
     return args
