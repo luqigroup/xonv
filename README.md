@@ -1,4 +1,4 @@
-<h1 align="center">xonv</h1>
+<h1 align="center">xonv: Extended convolutional layers</h1>
 
 This repository contains the code for extended convolutional layers.
 These layers are akin to the convolutional layers in PyTorch, but with
@@ -6,19 +6,27 @@ the key difference that they have spatially varying kernels.
 
 ## Installation
 
-Run the commands below to install the required packages. Make sure to adapt the `pytorch-cuda` version to your CUDA version in `environment.yml`. Use `environment-cpu.yml` instead for CPU-only lightweight installations.
+For further development and to run the examples, clone the repository
+and install the package in editable mode. **Make sure to adapt the
+hardcoded CUDA version in `setup.cfg` to the one installed on your system.**
 
 ```bash
-git clone https://github.com/alisiahkoohi/xonv
-cd xonv/
-conda env create -f environment.yml
+# Create a new conda environment.
+conda create --name xonv python
 conda activate xonv
+
+# Clone the repository and install the package in editable mode.
+git clone ttps://github.com/alisiahkoohi/xonv
+cd xonv/
 pip install -e .
 ```
 
-After the above steps, you can run the example scripts by just
-activating the environment, i.e., `conda activate xonv`, the
-following times.
+Run the command below to install the package to be used in your Python environment.
+
+```bash
+pip install git+https://github.com/alisiahkoohi/xonv
+```
+
 
 ## Usage
 
