@@ -4,7 +4,27 @@ This repository contains the code for extended convolutional layers.
 These layers are akin to the convolutional layers in PyTorch, but with
 the key difference that they have spatially varying kernels.
 
+Since the kernels are spatially varying, the convolutional layers in
+this repository offer more expressive power than the standard
+convolutional layers while still having $\mathcal{O}(n)$ parameters,
+where $n$ is the input size. The implementation is based on
+matrix-vector products, which allows for scalable training and inference
+on GPUs.
+
+Below is a comparison between the toeplitz-like matrix associated with a
+regular convolutional layer vs the extended convolutional layer
+(`xonv`):
+
+![](assets/toeplitz_like_matrix.png)
+
 ## Installation
+
+
+Run the command below to install the package to be used in your Python environment.
+
+```bash
+pip install xonv
+```
 
 For further development and to run the examples, clone the repository
 and install the package in editable mode. **Make sure to adapt the
@@ -21,11 +41,6 @@ cd xonv/
 pip install -e .
 ```
 
-Run the command below to install the package to be used in your Python environment.
-
-```bash
-pip install git+https://github.com/alisiahkoohi/xonv
-```
 
 
 ## Usage
@@ -41,11 +56,21 @@ input_size = (32, 32)  # Height, Width of input
 in_channels = 3
 out_channels = 16
 kernel_size = 3
+stride = 2
 
-layer = Xonv2D(in_channels, out_channels, kernel_size, input_size)
+layer = Xonv2D(
+    in_channels,
+    out_channels,
+    kernel_size,
+    input_size,
+    stride=stride,
+)
+
 input_tensor = torch.randn(1, in_channels, *input_size)
 output = layer(input_tensor)
-print(output.shape)  # Should be [1, 16, 32, 32]
+
+print(layer)  # Xonv2D(in_channels=3, out_channels=16, kernel_size=3, input_size=(32, 32), stride=2)
+print(output.shape)  # Should be [1, 16, 16, 16]
 ```
 
 ## Examples

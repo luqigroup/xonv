@@ -1,4 +1,5 @@
 import unittest
+import math
 import torch
 import torch.nn as nn
 from xonv.layer import Xonv2D
@@ -12,6 +13,7 @@ class TestXonv2D(unittest.TestCase):
         self.out_channels = 16
         self.kernel_size = 3
         self.input_size = (32, 32)
+        self.stride = 1  # Default stride
 
         self.input_tensor = torch.randn(
             self.batch_size,
@@ -25,12 +27,14 @@ class TestXonv2D(unittest.TestCase):
             self.kernel_size,
             padding=self.kernel_size // 2,
             bias=True,
+            stride=self.stride,
         )
         self.xonv = Xonv2D(
             self.in_channels,
             self.out_channels,
             self.kernel_size,
             self.input_size,
+            stride=self.stride,
         )
 
     def test_output_shape(self):
@@ -71,7 +75,8 @@ class TestXonv2D(unittest.TestCase):
             ))
 
     def test_different_kernels(self):
-        """Test if Xonv2D produces different outputs for different spatial locations."""
+        """Test if Xonv2D produces different outputs for different spatial
+        locations."""
         output1 = self.xonv(self.input_tensor)
 
         # Modify weights at a specific location
@@ -135,6 +140,110 @@ class TestXonv2D(unittest.TestCase):
             self.out_channels,
             *different_input_size,
         )
+        self.assertEqual(output.shape, expected_shape)
+
+    def test_stride_2(self):
+        """Test if the layer works with stride 2."""
+        stride = 2
+        xonv_stride2 = Xonv2D(
+            self.in_channels,
+            self.out_channels,
+            self.kernel_size,
+            self.input_size,
+            stride=stride,
+        )
+        output = xonv_stride2(self.input_tensor)
+        expected_shape = (self.batch_size, self.out_channels,
+                          self.input_size[0] // stride,
+                          self.input_size[1] // stride)
+        self.assertEqual(output.shape, expected_shape)
+
+    def test_stride_3(self):
+        """Test if the layer works with stride 3."""
+        stride = 3
+        xonv_stride3 = Xonv2D(
+            self.in_channels,
+            self.out_channels,
+            self.kernel_size,
+            self.input_size,
+            stride=stride,
+        )
+        output = xonv_stride3(self.input_tensor)
+        expected_shape = (self.batch_size, self.out_channels,
+                          math.ceil(self.input_size[0] / stride),
+                          math.ceil(self.input_size[1] / stride))
+        self.assertEqual(output.shape, expected_shape)
+
+    def test_stride_same_kernels(self):
+        """Test if Xonv2D with stride produces the same output as nn.Conv2d with
+        stride when all kernels are the same."""
+        stride = 2
+        standard_conv_stride = nn.Conv2d(
+            self.in_channels,
+            self.out_channels,
+            self.kernel_size,
+            padding=self.kernel_size // 2,
+            bias=True,
+            stride=stride,
+        )
+        xonv_stride = Xonv2D(
+            self.in_channels,
+            self.out_channels,
+            self.kernel_size,
+            self.input_size,
+            stride=stride,
+        )
+
+        with torch.no_grad():
+            xonv_stride.weights.data.copy_(
+                standard_conv_stride.weight.data.unsqueeze(0).unsqueeze(
+                    0).expand(
+                        math.ceil(self.input_size[0] / stride),
+                        math.ceil(self.input_size[1] / stride),
+                        -1,
+                        -1,
+                        -1,
+                        -1,
+                    ))
+            xonv_stride.bias.data.copy_(
+                standard_conv_stride.bias.data.unsqueeze(0).unsqueeze(
+                    0).expand(
+                        math.ceil(self.input_size[0] / stride),
+                        math.ceil(self.input_size[1] / stride),
+                        -1,
+                    ))
+
+        standard_output = standard_conv_stride(self.input_tensor)
+        xonv_output = xonv_stride(self.input_tensor)
+
+        self.assertTrue(
+            torch.allclose(
+                standard_output,
+                xonv_output,
+                atol=1e-6,
+            ))
+
+    # Add a new test for non-divisible input size
+    def test_non_divisible_input_size(self):
+        """Test if the layer works with an input size not divisible by stride."""
+        stride = 3
+        input_size = (31, 31)  # Not divisible by 3
+        input_tensor = torch.randn(
+            self.batch_size,
+            self.in_channels,
+            *input_size,
+        )
+        xonv_stride3 = Xonv2D(
+            self.in_channels,
+            self.out_channels,
+            self.kernel_size,
+            input_size,
+            stride=stride,
+        )
+        output = xonv_stride3(input_tensor)
+        expected_shape = (self.batch_size, self.out_channels,
+                          math.ceil(input_size[0] / stride),
+                          math.ceil(input_size[1] / stride))
         self.assertEqual(output.shape, expected_shape)
 
 

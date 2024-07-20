@@ -14,6 +14,7 @@ INPUT_SIZE: Tuple[int, int] = (8, 8)
 KERNEL_SIZE: int = 3
 IN_CHANNELS: int = 1
 OUT_CHANNELS: int = 1
+STRIDE: int = 1
 
 
 def create_toeplitz_like_matrix() -> np.ndarray:
@@ -37,13 +38,15 @@ def create_toeplitz_like_matrix() -> np.ndarray:
         OUT_CHANNELS,
         KERNEL_SIZE,
         INPUT_SIZE,
+        stride=STRIDE,
     )
     # Initialize the Conv2D layer
     conv = torch.nn.Conv2d(
         IN_CHANNELS,
         OUT_CHANNELS,
         KERNEL_SIZE,
-        padding='same',
+        padding=KERNEL_SIZE // 2,
+        stride=STRIDE,
     )
 
     # Set the bias to zero
@@ -67,8 +70,10 @@ def create_toeplitz_like_matrix() -> np.ndarray:
             with torch.no_grad():
                 output_xonv = xonv(input_image)
                 output_conv = conv(input_image)
-                # from IPython import embed
-                # embed()
+
+                if i == 0 and j == 0:
+                    print("Xonv2D output shape:", output_xonv.shape)
+                    print("Conv2D output shape:", output_conv.shape)
 
             # Flatten the output and add it to the Toeplitz-like matrix.
             toeplitz_matrix['xonv'].append(
@@ -77,7 +82,7 @@ def create_toeplitz_like_matrix() -> np.ndarray:
                 output_conv.squeeze().numpy().flatten())
 
     # Convert to numpy array
-    toeplitz_matrix = {k: np.array(v) for k, v in toeplitz_matrix.items()}
+    toeplitz_matrix = {k: np.array(v).T for k, v in toeplitz_matrix.items()}
 
     return toeplitz_matrix
 
@@ -93,25 +98,35 @@ def plot_toeplitz_matrix(toeplitz_matrix: np.ndarray) -> None:
         toeplitz_matrix (np.ndarray): The Toeplitz-like matrix to be plotted.
     """
 
-    plt.figure(dpi=150)
-    plt.imshow(toeplitz_matrix['xonv'],
-               cmap="RdGy",
-               aspect='equal',
-               vmin=-0.25,
-               vmax=0.25)
-    plt.colorbar(pad=0.01)
-    plt.title("Toeplitz-like matrix for Xonv2D layer")
-    plt.tight_layout()
+    fig, axes = plt.subplots(1, 2, dpi=150, figsize=(12, 6))
 
-    plt.figure(dpi=150)
-    plt.imshow(toeplitz_matrix['conv'],
-               cmap="RdGy",
-               aspect='equal',
-               vmin=-0.25,
-               vmax=0.25)
-    plt.colorbar(pad=0.01)
-    plt.title("Toeplitz matrix for Conv2D layer")
+    # Plot for the Toeplitz-like matrix for Xonv2D layer
+    im1 = axes[1].imshow(toeplitz_matrix['xonv'],
+                         cmap="RdGy",
+                         aspect='equal',
+                         vmin=-0.25,
+                         vmax=0.25)
+    fig.colorbar(im1, ax=axes[1], pad=0.01, fraction=0.047)
+    axes[1].set_xlabel("Input dimension")
+    axes[1].set_ylabel("Output dimension")
+    axes[1].set_title("Toeplitz-like matrix for Xonv2D layer")
+
+    # Plot for the Toeplitz matrix for Conv2D layer
+    im2 = axes[0].imshow(toeplitz_matrix['conv'],
+                         cmap="RdGy",
+                         aspect='equal',
+                         vmin=-0.25,
+                         vmax=0.25)
+    fig.colorbar(im2, ax=axes[0], pad=0.01, fraction=0.047)
+    axes[0].set_xlabel("Input dimension")
+    axes[0].set_ylabel("Output dimension")
+    axes[0].set_title("Toeplitz matrix for Conv2D layer")
+
     plt.tight_layout()
+    plt.savefig("toeplitz_like_matrix.png",
+                dpi=150,
+                bbox_inches='tight',
+                pad_inches=0.02)
     plt.show()
 
 
