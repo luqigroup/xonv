@@ -11,5 +11,6 @@
     "vis_res": 1000,
     "vis_range": "-4.0,4.0",
     "gpu_id": 0,
-    "seed": 0
+    "seed": 0,
+    "upload_results": 1
 }

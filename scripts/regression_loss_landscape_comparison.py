@@ -16,6 +16,7 @@ from xonv.utils import (
     make_experiment_name,
     process_sequence_arguments,
     checkpointsdir,
+    upload_to_dropbox,
 )
 
 CONFIG_FILE = 'regression_loss_landscape_comparison.json'
@@ -218,5 +219,6 @@ if '__main__' == __name__:
         ),
     )
 
-    from IPython import embed
-    embed()
+    # Upload results to Dropbox.
+    if args.upload_results:
+        upload_to_dropbox(args)
