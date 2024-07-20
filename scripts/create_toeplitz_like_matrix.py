@@ -123,10 +123,6 @@ def plot_toeplitz_matrix(toeplitz_matrix: np.ndarray) -> None:
     axes[0].set_title("Toeplitz matrix for Conv2D layer")
 
     plt.tight_layout()
-    plt.savefig("toeplitz_like_matrix.png",
-                dpi=150,
-                bbox_inches='tight',
-                pad_inches=0.02)
     plt.show()
 
 

@@ -27,8 +27,8 @@ pip install xonv
 ```
 
 For further development and to run the examples, clone the repository
-and install the package in editable mode. **Make sure to adapt the
-hardcoded CUDA version in `setup.cfg` to the one installed on your system.**
+and install the package in editable mode. **Make sure to adapt CUDA
+version in `setup.cfg` to the one installed on your system.**
 
 ```bash
 # Create a new conda environment.

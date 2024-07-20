@@ -1,5 +1,3 @@
-# pylint: disable=E1102
-# pylint: disable=invalid-name
 """A script that uses extended convolutional layers for regression.
 """
 from typing import Dict
