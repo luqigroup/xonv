@@ -223,7 +223,6 @@ class TestXonv2D(unittest.TestCase):
                 atol=1e-6,
             ))
 
-    # Add a new test for non-divisible input size
     def test_non_divisible_input_size(self):
         """Test if the layer works with an input size not divisible by stride."""
         stride = 3

@@ -1,8 +1,8 @@
+from typing import Tuple
 import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Tuple
 
 
 class Xonv2D(nn.Module):
