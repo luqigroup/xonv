@@ -338,12 +338,12 @@ if __name__ == '__main__':
     plot_loss_landscape(
         args,
         conv_loss_landscape,
-        fig_name_extension="_conv",
+        fig_name_extension="Conv2d",
     )
     plot_loss_landscape(
         args,
         xonv_loss_landscape,
-        fig_name_extension="_xonv",
+        fig_name_extension="Xonv2d",
     )
 
     # Upload results to Dropbox if specified

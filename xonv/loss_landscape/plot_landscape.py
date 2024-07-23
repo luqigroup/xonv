@@ -52,7 +52,7 @@ def plot_loss_landscape(
         s=7.5,
         label="Minimizer",
     )
-    plt.title("Loss landscape")
+    plt.title("Loss landscape: " + fig_name_extension)
     plt.legend(loc="upper right")
     plt.grid(False)
     plt.xlabel(r"$\alpha$")
@@ -60,7 +60,7 @@ def plot_loss_landscape(
     plt.savefig(
         os.path.join(
             plotsdir(args.experiment),
-            'loss_landscape' + fig_name_extension + '.png',
+            'loss_landscape_' + fig_name_extension + '.png',
         ),
         format="png",
         bbox_inches="tight",
@@ -75,8 +75,9 @@ def plot_loss_landscape(
                     loss_landscape.shape[1]),
         np.linspace(args.vis_range[0], args.vis_range[1],
                     loss_landscape.shape[0]),
-        loss_landscape,
+        loss_landscape.numpy()[::-1, :],
         levels=50,
+        extent=[*args.vis_range, *args.vis_range],
         cmap=cc.cm["linear_protanopic_deuteranopic_kbw_5_98_c40"],
     )
     plt.scatter(
@@ -90,13 +91,13 @@ def plot_loss_landscape(
     plt.grid(False)
     fig.colorbar(contour, ax=ax, fraction=0.05, pad=0.01, format=sfmt)
     plt.legend(loc="upper right")
-    ax.set_title("Loss landscape")
+    ax.set_title("Loss landscape: " + fig_name_extension)
     ax.set_xlabel(r"$\alpha$")
     ax.set_ylabel(r"$\beta$")
     plt.savefig(
         os.path.join(
             plotsdir(args.experiment),
-            'loss_landscape_contourf' + fig_name_extension + '.png',
+            'loss_landscape_contourf_' + fig_name_extension + '.png',
         ),
         format="png",
         bbox_inches="tight",

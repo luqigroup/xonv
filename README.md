@@ -6,10 +6,9 @@ the key difference that they have spatially varying kernels.
 
 Since the kernels are spatially varying, the convolutional layers in
 this repository offer more expressive power than the standard
-convolutional layers while still having $\mathcal{O}(n)$ parameters,
-where $n$ is the input size. The implementation is based on
-matrix-vector products, which allows for scalable training and inference
-on GPUs.
+convolutional layers while having $\mathcal{O}(n)$ parameters, where $n$
+is the input size. The implementation is based on matrix-vector
+products, which allows for scalable training and inference on GPUs.
 
 Below is a comparison between the toeplitz-like matrix associated with a
 regular convolutional layer vs the extended convolutional layer
@@ -40,8 +39,6 @@ git clone ttps://github.com/alisiahkoohi/xonv
 cd xonv/
 pip install -e .
 ```
-
-
 
 ## Usage
 
@@ -75,10 +72,20 @@ print(output.shape)  # Should be [1, 16, 16, 16]
 
 ## Examples
 
+### Visualizing the associated linear matrix
+
 To visualize the toeplitz-like matrix associated with the convolutional layer, run the following command:
 
 ```bash
 python scripts/create_toeplitz_like_matrix.py
+```
+
+### Comparing the loss landscape of `Xonv2d` vs `torch.nn.Conv2d` for a regression task
+
+To compare the loss landscape of the extended convolutional layer with the standard convolutional layer, run the following command:
+
+```bash
+python scripts/regression_loss_landscape_comparison.py
 ```
 
 
