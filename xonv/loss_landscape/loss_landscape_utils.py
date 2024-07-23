@@ -23,14 +23,22 @@ def filter_normalization(
 
         rand_direction_norms = tmp.norm(
             dim=-1,
-            keepdim=True if len(tmp.size()) > 1 else False,
+            keepdim=False if len(tmp.size()) > 1 else True,
+        )
+        rand_direction_norms = rand_direction_norms.view(
+            rand_direction_norms.shape[0],
+            *[1 for _ in rand_direction.shape[1:]],
         )
 
         param_data = param_data.view(param_data.size(0), -1) if len(
             param_data.size()) > 1 else param_data
         param_data_norms = param_data.norm(
             dim=-1,
-            keepdim=True if len(param_data.size()) > 1 else False,
+            keepdim=False if len(tmp.size()) > 1 else True,
+        )
+        param_data_norms = param_data_norms.view(
+            param_data_norms.shape[0],
+            *[1 for _ in rand_direction.shape[1:]],
         )
 
         # Normalize the random direction tensor
