@@ -44,6 +44,7 @@ def make_experiment_name(args):
                 'experiment_name',
                 'phase',
                 'upload_results',
+                'gpu_id',
         ]:
             experiment_name += key + '-{}_'.format(value)
     experiment_name = experiment_name[:-1].replace(' ', '').replace(',', '-')
