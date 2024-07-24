@@ -1,14 +1,14 @@
 # pylint: disable=E1102
 """
-This script compares loss landscapes of extended and conventional
+This script compares convergence of extended and conventional
 convolutional layers in a regression context.
 
-It implements a class RegressionLossLandscape that computes and visualizes
-loss landscapes for both conventional convolutional (Conv2d) and extended
+It implements a class RegressionConvergence that computes and visualizes
+convergence for both conventional convolutional (Conv2d) and extended
 convolutional (Xonv2d) models in a regression setting.
 """
 
-from typing import Dict, Tuple, List, Optional
+from typing import Dict, Tuple, List, Any, Optional
 import os
 import argparse
 from tqdm import tqdm
@@ -34,6 +34,7 @@ from xonv.utils import (
     plotsdir,
 )
 
+# Set up Seaborn and Matplotlib configurations
 sns.set_style("whitegrid")
 font = {'family': 'serif', 'style': 'normal', 'size': 10}
 matplotlib.rc('font', **font)
@@ -48,28 +49,27 @@ class RegressionConvergence:
     """
     Compares convergence of Conv2d and Xonv2d in a regression context.
 
-    This class implements methods to compute and compare loss landscapes for
+    This class implements methods to compute and compare convergence for
     conventional convolutional layers and extended convolutional (Xonv) layers.
 
     Attributes:
         device (torch.device): The device (cpu/cuda) used for computation.
-
-        conv_model (Conv2dRegressionModel): The conventional convolutional
-            regression model.
         true_conv_weights (Dict[str, Tensor]): The true weights of the
             convolutional model.
         x (Tensor): The input tensor for regression.
         y (Tensor): The target output tensor for regression.
+        norm_rand_dirs (Tuple[Dict[str, Tensor], Dict[str, Tensor]]): Two random
+            directions in the parameter space.
     """
 
     def __init__(self, args: argparse.Namespace) -> None:
         """
-        Initialize the RegressionLossLandscape object.
+        Initialize the RegressionConvergence object.
 
         Args:
             args (argparse.Namespace): The command line arguments.
         """
-        # Set the device based on CUDA availability and input arguments
+        # Set the device for computation
         self.device: torch.device = torch.device(
             f'cuda:{args.gpu_id}'
             if torch.cuda.is_available() and args.gpu_id > -1 else 'cpu')
@@ -85,7 +85,7 @@ class RegressionConvergence:
         self.true_conv_weights: Dict[str, Tensor] = dict(
             conv_model.named_parameters())
 
-        # Generate input data and compute target output
+        # Generate input and target tensors
         self.x: Tensor = 1e-2 * torch.randn([
             args.batchsize,
             args.num_channels,
@@ -93,35 +93,37 @@ class RegressionConvergence:
         ]).to(self.device)
         self.y: Tensor = conv_model(self.x)
 
-        # Generate two random directions in the parameter space
+        # Generate normalized random directions
         self.norm_rand_dirs: Tuple[Dict[str, Tensor], Dict[str, Tensor]] = (
             filter_normalization(self.true_conv_weights),
             filter_normalization(self.true_conv_weights),
         )
 
     def set_conv_model_weights(self, weights: Dict[str, Tensor],
-                               conv_model) -> None:
+                               conv_model: Conv2dRegressionModel) -> None:
         """
         Set the weights of the convolutional model.
 
         Args:
             weights (Dict[str, Tensor]): The weights to set.
+            conv_model (Conv2dRegressionModel): The model to update.
         """
         for name, param in conv_model.named_parameters():
             param.data = weights[name].data
 
-    def train_conv(self, args: argparse.Namespace) -> Tensor:
+    def train_conv(
+            self, args: argparse.Namespace
+    ) -> Dict[Tuple[float, float], List[float]]:
         """
-        Compute the loss landscape for the conventional convolutional model.
+        Train the conventional convolutional model and compute the objective log.
 
         Args:
             args (argparse.Namespace): The command line arguments.
 
         Returns:
-            Tensor: The computed loss landscape.
+            Dict[Tuple[float, float], List[float]]: The computed objective log.
         """
-
-        obj_log = {
+        obj_log: Dict[Tuple[float, float], List[float]] = {
             (args.vis_range[0], args.vis_range[0]): [],
             (args.vis_range[0], args.vis_range[1]): [],
             (args.vis_range[1], args.vis_range[0]): [],
@@ -129,6 +131,7 @@ class RegressionConvergence:
         }
 
         for alpha, beta in obj_log.keys():
+            # Update parameters based on random directions
             updated_params_dict: Dict[str, Tensor] = update_parameters_dict(
                 self.true_conv_weights,
                 self.norm_rand_dirs,
@@ -136,37 +139,35 @@ class RegressionConvergence:
                 beta,
             )
 
-            # Initialize the conventional convolutional model
+            # Initialize the convolutional model
             conv_model: Conv2dRegressionModel = Conv2dRegressionModel(
                 args.num_channels,
                 args.kernel_size,
                 args.num_layers,
             ).to(self.device)
 
+            # Set the weights of the model
             self.set_conv_model_weights(updated_params_dict, conv_model)
 
-            # Set up the optimizer for the Xonv model
+            # Initialize the optimizer
             conv_optimizer: torch.optim.Adam = torch.optim.Adam(
                 conv_model.parameters(),
                 lr=args.lr,
             )
 
+            # Training loop
             for _ in tqdm(
                     range(args.max_itrs),
                     unit='epoch',
                     colour='#B5F2A9',
                     dynamic_ncols=True,
             ):
-                # Compute the model output using the given weights
+                # Forward pass
                 y_hat: Tensor = conv_model(self.x)
-
-                # Compute and return the mean squared error loss
                 loss: Tensor = 0.5 * torch.norm(self.y - y_hat)**2
 
-                # Compute gradients and update parameters.
+                # Backward pass
                 conv_model.zero_grad()
-
-                # Compute gradients and update parameters
                 grads: List[Tensor] = torch.autograd.grad(
                     loss,
                     conv_model.parameters(),
@@ -174,25 +175,28 @@ class RegressionConvergence:
                 for param, grad in zip(conv_model.parameters(), grads):
                     param.grad = grad
 
+                # Update parameters
                 conv_optimizer.step()
                 conv_model.zero_grad()
 
+                # Log the loss
                 obj_log[(alpha, beta)].append(loss.detach().item())
 
         return obj_log
 
-    def train_xonv(self, args: argparse.Namespace) -> Tensor:
+    def train_xonv(
+            self, args: argparse.Namespace
+    ) -> Dict[Tuple[float, float], List[float]]:
         """
-        Compute the loss landscape for the conventional convolutional model.
+        Train the extended convolutional (Xonv) model and compute the objective log.
 
         Args:
             args (argparse.Namespace): The command line arguments.
 
         Returns:
-            Tensor: The computed loss landscape.
+            Dict[Tuple[float, float], List[float]]: The computed objective log.
         """
-
-        obj_log = {
+        obj_log: Dict[Tuple[float, float], List[float]] = {
             (args.vis_range[0], args.vis_range[0]): [],
             (args.vis_range[0], args.vis_range[1]): [],
             (args.vis_range[1], args.vis_range[0]): [],
@@ -200,6 +204,7 @@ class RegressionConvergence:
         }
 
         for alpha, beta in obj_log.keys():
+            # Update parameters based on random directions
             updated_params_dict: Dict[str, Tensor] = update_parameters_dict(
                 self.true_conv_weights,
                 self.norm_rand_dirs,
@@ -207,16 +212,17 @@ class RegressionConvergence:
                 beta,
             )
 
-            # Initialize the conventional convolutional model
+            # Initialize the convolutional model
             conv_model: Conv2dRegressionModel = Conv2dRegressionModel(
                 args.num_channels,
                 args.kernel_size,
                 args.num_layers,
             ).to(self.device)
 
+            # Set the weights of the convolutional model
             self.set_conv_model_weights(updated_params_dict, conv_model)
 
-            # Initialize the Xonv model
+            # Initialize the extended convolutional model
             xonv_model: Xonv2dRegressionModel = Xonv2dRegressionModel(
                 args.num_channels,
                 args.kernel_size,
@@ -224,33 +230,30 @@ class RegressionConvergence:
                 args.num_layers,
             ).to(self.device)
 
-            # Set up the optimizer for the Xonv model
+            # Initialize optimizers
             conv_optimizer: torch.optim.Adam = torch.optim.Adam(
                 conv_model.parameters(),
                 lr=args.lr,
             )
-            # Set up the optimizer for the Xonv model
             xonv_optimizer: torch.optim.Adam = torch.optim.Adam(
                 xonv_model.parameters(),
                 lr=args.lr,
             )
 
+            # Training loop
             for _ in tqdm(
                     range(args.max_itrs),
                     unit='epoch',
                     colour='#B5F2A9',
                     dynamic_ncols=True,
             ):
-
+                # Inner loop for Xonv model
                 for _ in range(args.inner_max_itrs):
-                    # Compute the model output using the given weights
+                    # Forward pass
                     y_hat: Tensor = xonv_model(self.x)
+                    mse_loss: Tensor = 0.5 * torch.norm(self.y - y_hat)**2
 
-                    # Compute and return the mean squared error loss
-                    loss: Tensor = 0.5 * torch.norm(self.y - y_hat)**2
-
-                    # Compute the penalty term (L2 distance between Xonv and Conv
-                    # weights)
+                    # Compute penalty
                     penalty: Tensor = sum(args.gamma *
                                           torch.norm(xparam - param)**2
                                           for xparam, param in zip(
@@ -258,11 +261,10 @@ class RegressionConvergence:
                                               conv_model.parameters(),
                                           ))
 
-                    # Compute the total loss (MSE + penalty)
-                    loss: Tensor = 0.5 * torch.norm(
-                        self.y - xonv_model(self.x))**2 + penalty
+                    # Total loss
+                    loss: Tensor = mse_loss + penalty
 
-                    # Compute gradients and update parameters
+                    # Backward pass
                     xgrads: List[Tensor] = torch.autograd.grad(
                         loss,
                         xonv_model.parameters(),
@@ -270,11 +272,11 @@ class RegressionConvergence:
                     for xparam, xgrad in zip(xonv_model.parameters(), xgrads):
                         xparam.grad = xgrad
 
+                    # Update Xonv parameters
                     xonv_optimizer.step()
                     xonv_model.zero_grad()
 
-                # Compute the penalty term (L2 distance between Xonv and Conv
-                # weights)
+                # Compute penalty for Conv model
                 penalty: Tensor = sum(args.gamma *
                                       torch.norm(xparam - param)**2
                                       for xparam, param in zip(
@@ -282,7 +284,7 @@ class RegressionConvergence:
                                           conv_model.parameters(),
                                       ))
 
-                # Compute gradients and update parameters
+                # Backward pass for Conv model
                 grads: List[Tensor] = torch.autograd.grad(
                     penalty,
                     conv_model.parameters(),
@@ -290,9 +292,11 @@ class RegressionConvergence:
                 for param, grad in zip(conv_model.parameters(), grads):
                     param.grad = grad
 
+                # Update Conv parameters
                 conv_optimizer.step()
                 conv_model.zero_grad()
 
+                # Log the loss
                 obj_log[(alpha, beta)].append(loss.detach().item())
 
         return obj_log
@@ -301,7 +305,8 @@ class RegressionConvergence:
         self,
         args: argparse.Namespace,
         filepath: str,
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> Tuple[Dict[Tuple[float, float], List[float]], Dict[Tuple[
+            float, float], List[float]]]:
         """
         Load model checkpoint.
 
@@ -310,13 +315,14 @@ class RegressionConvergence:
             filepath (str): Path to the checkpoint file.
 
         Returns:
-            Tuple[Tensor, Tensor]: Loaded conv_loss_landscape and
-                xonv_loss_landscape.
+            Tuple[Dict[Tuple[float, float], List[float]], Dict[Tuple[float, float], List[float]]]:
+                Loaded conv_obj_log and xonv_obj_log.
 
         Raises:
             ValueError: If checkpoint does not exist.
         """
         if os.path.isfile(filepath):
+            # Load checkpoint based on device
             if self.device == torch.device(type='cpu'):
                 checkpoint: Dict[str, Any] = torch.load(
                     filepath,
@@ -325,11 +331,14 @@ class RegressionConvergence:
             else:
                 checkpoint: Dict[str, Any] = torch.load(filepath)
 
+            # Extract data from checkpoint
             self.x = checkpoint['x']
             self.y = checkpoint['y']
             self.true_conv_weights = checkpoint['true_conv_weights']
-            conv_obj_log: Tensor = checkpoint['conv_obj_log']
-            xonv_obj_log: Tensor = checkpoint['xonv_obj_log']
+            conv_obj_log: Dict[Tuple[float, float],
+                               List[float]] = checkpoint['conv_obj_log']
+            xonv_obj_log: Dict[Tuple[float, float],
+                               List[float]] = checkpoint['xonv_obj_log']
 
         else:
             raise ValueError('Checkpoint does not exist.')
@@ -338,30 +347,33 @@ class RegressionConvergence:
 
 
 if __name__ == '__main__':
-    # Read input arguments from a JSON file and process them
+    # Parse arguments
     args: argparse.Namespace = query_arguments(CONFIG_FILE)[0]
     args.experiment = make_experiment_name(args)
     args = process_sequence_arguments(args)
 
+    # Set checkpoint filepath
     checkpoint_filepath: str = os.path.join(
         checkpointsdir(args.experiment),
         'loss_objs.pth',
     )
 
-    # Set random seed for reproducibility
+    # Set random seeds for reproducibility
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
 
-    # Initialize the RegressionLossLandscape object
+    # Initialize RegressionConvergence object
     reg_convergence: RegressionConvergence = RegressionConvergence(args)
 
     if args.phase == 'compute':
         if not os.path.exists(checkpoint_filepath):
-            # Compute the loss landscapes for both models
-            conv_obj_log: Tensor = reg_convergence.train_conv(args)
-            xonv_obj_log: Tensor = reg_convergence.train_xonv(args)
+            # Compute convergence for Conv and Xonv models
+            conv_obj_log: Dict[Tuple[float, float],
+                               List[float]] = reg_convergence.train_conv(args)
+            xonv_obj_log: Dict[Tuple[float, float],
+                               List[float]] = reg_convergence.train_xonv(args)
 
-            # Save the results
+            # Save checkpoint
             torch.save(
                 {
                     'true_conv_weights': reg_convergence.true_conv_weights,
@@ -374,14 +386,15 @@ if __name__ == '__main__':
                 checkpoint_filepath,
             )
 
-    # Load the computed loss landscapes
+    # Load checkpoint
     conv_obj_log, xonv_obj_log = reg_convergence.load_checkpoint(
         args,
         checkpoint_filepath,
     )
 
+    # Normalize and plot results
     for alpha, beta in conv_obj_log.keys():
-
+        # Normalize logs
         conv_obj_log[(alpha, beta)] = [
             obj / conv_obj_log[(alpha, beta)][0]
             for obj in conv_obj_log[(alpha, beta)]
@@ -391,7 +404,7 @@ if __name__ == '__main__':
             for obj in xonv_obj_log[(alpha, beta)]
         ]
 
-        # Create a new figure for plotting
+        # Create plot
         fig = plt.figure("training logs", figsize=(7, 4))
 
         plt.plot(
@@ -409,20 +422,18 @@ if __name__ == '__main__':
             alpha=0.8,
         )
 
-        # Format y-axis labels using scientific notation
         plt.ticklabel_format(axis="y", style="sci", useMathText=True)
 
-        # Set plot title and labels
         plt.title("Training loss over training")
         plt.ylabel("Normalized loss value")
         plt.xlabel("Epochs")
         plt.legend()
 
-        # Save the plot
+        # Save plot
         plt.savefig(
             os.path.join(
                 plotsdir(args.experiment),
-                "log_alpha-" + str(alpha) + "_beta-" + str(beta) + ".png",
+                f"log_alpha-{alpha}_beta-{beta}.png",
             ),
             format="png",
             bbox_inches="tight",
@@ -430,9 +441,7 @@ if __name__ == '__main__':
             pad_inches=.02,
         )
 
-        # Close the figure to release memory
         plt.close(fig)
 
-    # Upload results to Dropbox if specified
     if args.upload_results:
         upload_to_dropbox(args)
