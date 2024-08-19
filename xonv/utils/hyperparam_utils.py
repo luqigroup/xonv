@@ -1,8 +1,8 @@
 import itertools
 import os
 
-from .project_path import configsdir
 from .config import parse_input_args, read_config
+from .project_path import configsdir
 
 
 def make_complete_args(config_file, **kwargs):

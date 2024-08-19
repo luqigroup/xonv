@@ -8,41 +8,41 @@ convergence for both conventional convolutional (Conv2d) and extended
 convolutional (Xonv2d) models in a regression setting.
 """
 
-from typing import Dict, Tuple, List, Any, Optional
-import os
 import argparse
-from tqdm import tqdm
-import torch
-from torch import Tensor
-import numpy as np
-import seaborn as sns
+import os
+from typing import Any, Dict, List, Tuple
+
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+import torch
+from torch import Tensor
+from tqdm import tqdm
 
-from xonv.model import Conv2dRegressionModel, Xonv2dRegressionModel
 from xonv.loss_landscape import (
     filter_normalization,
     update_parameters_dict,
-    plot_loss_landscape,
 )
+from xonv.model import Conv2dRegressionModel, Xonv2dRegressionModel
 from xonv.utils import (
-    query_arguments,
-    make_experiment_name,
-    process_sequence_arguments,
     checkpointsdir,
-    upload_to_dropbox,
+    make_experiment_name,
     plotsdir,
+    process_sequence_arguments,
+    query_arguments,
+    upload_to_dropbox,
 )
 
 # Set up Seaborn and Matplotlib configurations
 sns.set_style("whitegrid")
-font = {'family': 'serif', 'style': 'normal', 'size': 10}
-matplotlib.rc('font', **font)
+font = {"family": "serif", "style": "normal", "size": 10}
+matplotlib.rc("font", **font)
 sfmt = matplotlib.ticker.ScalarFormatter(useMathText=True)
 sfmt.set_powerlimits((0, 0))
 matplotlib.use("Agg")
 
-CONFIG_FILE: str = 'regression_convergence_comparison.json'
+CONFIG_FILE: str = "regression_convergence_comparison.json"
 
 
 class RegressionConvergence:
@@ -71,8 +71,10 @@ class RegressionConvergence:
         """
         # Set the device for computation
         self.device: torch.device = torch.device(
-            f'cuda:{args.gpu_id}'
-            if torch.cuda.is_available() and args.gpu_id > -1 else 'cpu')
+            f"cuda:{args.gpu_id}"
+            if torch.cuda.is_available() and args.gpu_id > -1
+            else "cpu"
+        )
 
         # Initialize the conventional convolutional model
         conv_model: Conv2dRegressionModel = Conv2dRegressionModel(
@@ -82,15 +84,16 @@ class RegressionConvergence:
         ).to(self.device)
 
         # Store the true weights of the convolutional model
-        self.true_conv_weights: Dict[str, Tensor] = dict(
-            conv_model.named_parameters())
+        self.true_conv_weights: Dict[str, Tensor] = dict(conv_model.named_parameters())
 
         # Generate input and target tensors
-        self.x: Tensor = 1e-2 * torch.randn([
-            args.batchsize,
-            args.num_channels,
-            *args.input_size,
-        ]).to(self.device)
+        self.x: Tensor = 1e-2 * torch.randn(
+            [
+                args.batchsize,
+                args.num_channels,
+                *args.input_size,
+            ]
+        ).to(self.device)
         self.y: Tensor = conv_model(self.x)
 
         # Generate normalized random directions
@@ -99,8 +102,9 @@ class RegressionConvergence:
             filter_normalization(self.true_conv_weights),
         )
 
-    def set_conv_model_weights(self, weights: Dict[str, Tensor],
-                               conv_model: Conv2dRegressionModel) -> None:
+    def set_conv_model_weights(
+        self, weights: Dict[str, Tensor], conv_model: Conv2dRegressionModel
+    ) -> None:
         """
         Set the weights of the convolutional model.
 
@@ -112,7 +116,7 @@ class RegressionConvergence:
             param.data = weights[name].data
 
     def train_conv(
-            self, args: argparse.Namespace
+        self, args: argparse.Namespace
     ) -> Dict[Tuple[float, float], List[float]]:
         """
         Train the conventional convolutional model and compute the objective log.
@@ -157,14 +161,14 @@ class RegressionConvergence:
 
             # Training loop
             for _ in tqdm(
-                    range(args.max_itrs),
-                    unit='epoch',
-                    colour='#B5F2A9',
-                    dynamic_ncols=True,
+                range(args.max_itrs),
+                unit="epoch",
+                colour="#B5F2A9",
+                dynamic_ncols=True,
             ):
                 # Forward pass
                 y_hat: Tensor = conv_model(self.x)
-                loss: Tensor = 0.5 * torch.norm(self.y - y_hat)**2
+                loss: Tensor = 0.5 * torch.norm(self.y - y_hat) ** 2
 
                 # Backward pass
                 conv_model.zero_grad()
@@ -185,7 +189,7 @@ class RegressionConvergence:
         return obj_log
 
     def train_xonv(
-            self, args: argparse.Namespace
+        self, args: argparse.Namespace
     ) -> Dict[Tuple[float, float], List[float]]:
         """
         Train the extended convolutional (Xonv) model and compute the objective log.
@@ -242,24 +246,25 @@ class RegressionConvergence:
 
             # Training loop
             for _ in tqdm(
-                    range(args.max_itrs),
-                    unit='epoch',
-                    colour='#B5F2A9',
-                    dynamic_ncols=True,
+                range(args.max_itrs),
+                unit="epoch",
+                colour="#B5F2A9",
+                dynamic_ncols=True,
             ):
                 # Inner loop for Xonv model
                 for _ in range(args.inner_max_itrs):
                     # Forward pass
                     y_hat: Tensor = xonv_model(self.x)
-                    mse_loss: Tensor = 0.5 * torch.norm(self.y - y_hat)**2
+                    mse_loss: Tensor = 0.5 * torch.norm(self.y - y_hat) ** 2
 
                     # Compute penalty
-                    penalty: Tensor = sum(args.gamma *
-                                          torch.norm(xparam - param)**2
-                                          for xparam, param in zip(
-                                              xonv_model.parameters(),
-                                              conv_model.parameters(),
-                                          ))
+                    penalty: Tensor = sum(
+                        args.gamma * torch.norm(xparam - param) ** 2
+                        for xparam, param in zip(
+                            xonv_model.parameters(),
+                            conv_model.parameters(),
+                        )
+                    )
 
                     # Total loss
                     loss: Tensor = mse_loss + penalty
@@ -277,12 +282,13 @@ class RegressionConvergence:
                     xonv_model.zero_grad()
 
                 # Compute penalty for Conv model
-                penalty: Tensor = sum(args.gamma *
-                                      torch.norm(xparam - param)**2
-                                      for xparam, param in zip(
-                                          xonv_model.parameters(),
-                                          conv_model.parameters(),
-                                      ))
+                penalty: Tensor = sum(
+                    args.gamma * torch.norm(xparam - param) ** 2
+                    for xparam, param in zip(
+                        xonv_model.parameters(),
+                        conv_model.parameters(),
+                    )
+                )
 
                 # Backward pass for Conv model
                 grads: List[Tensor] = torch.autograd.grad(
@@ -305,8 +311,9 @@ class RegressionConvergence:
         self,
         args: argparse.Namespace,
         filepath: str,
-    ) -> Tuple[Dict[Tuple[float, float], List[float]], Dict[Tuple[
-            float, float], List[float]]]:
+    ) -> Tuple[
+        Dict[Tuple[float, float], List[float]], Dict[Tuple[float, float], List[float]]
+    ]:
         """
         Load model checkpoint.
 
@@ -323,30 +330,32 @@ class RegressionConvergence:
         """
         if os.path.isfile(filepath):
             # Load checkpoint based on device
-            if self.device == torch.device(type='cpu'):
+            if self.device == torch.device(type="cpu"):
                 checkpoint: Dict[str, Any] = torch.load(
                     filepath,
-                    map_location='cpu',
+                    map_location="cpu",
                 )
             else:
                 checkpoint: Dict[str, Any] = torch.load(filepath)
 
             # Extract data from checkpoint
-            self.x = checkpoint['x']
-            self.y = checkpoint['y']
-            self.true_conv_weights = checkpoint['true_conv_weights']
-            conv_obj_log: Dict[Tuple[float, float],
-                               List[float]] = checkpoint['conv_obj_log']
-            xonv_obj_log: Dict[Tuple[float, float],
-                               List[float]] = checkpoint['xonv_obj_log']
+            self.x = checkpoint["x"]
+            self.y = checkpoint["y"]
+            self.true_conv_weights = checkpoint["true_conv_weights"]
+            conv_obj_log: Dict[Tuple[float, float], List[float]] = checkpoint[
+                "conv_obj_log"
+            ]
+            xonv_obj_log: Dict[Tuple[float, float], List[float]] = checkpoint[
+                "xonv_obj_log"
+            ]
 
         else:
-            raise ValueError('Checkpoint does not exist.')
+            raise ValueError("Checkpoint does not exist.")
 
         return conv_obj_log, xonv_obj_log
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Parse arguments
     args: argparse.Namespace = query_arguments(CONFIG_FILE)[0]
     args.experiment = make_experiment_name(args)
@@ -355,7 +364,7 @@ if __name__ == '__main__':
     # Set checkpoint filepath
     checkpoint_filepath: str = os.path.join(
         checkpointsdir(args.experiment),
-        'loss_objs.pth',
+        "loss_objs.pth",
     )
 
     # Set random seeds for reproducibility
@@ -365,23 +374,25 @@ if __name__ == '__main__':
     # Initialize RegressionConvergence object
     reg_convergence: RegressionConvergence = RegressionConvergence(args)
 
-    if args.phase == 'compute':
+    if args.phase == "compute":
         if not os.path.exists(checkpoint_filepath):
             # Compute convergence for Conv and Xonv models
-            conv_obj_log: Dict[Tuple[float, float],
-                               List[float]] = reg_convergence.train_conv(args)
-            xonv_obj_log: Dict[Tuple[float, float],
-                               List[float]] = reg_convergence.train_xonv(args)
+            conv_obj_log: Dict[Tuple[float, float], List[float]] = (
+                reg_convergence.train_conv(args)
+            )
+            xonv_obj_log: Dict[Tuple[float, float], List[float]] = (
+                reg_convergence.train_xonv(args)
+            )
 
             # Save checkpoint
             torch.save(
                 {
-                    'true_conv_weights': reg_convergence.true_conv_weights,
-                    'x': reg_convergence.x,
-                    'y': reg_convergence.y,
-                    'conv_obj_log': conv_obj_log,
-                    'xonv_obj_log': xonv_obj_log,
-                    'args': args,
+                    "true_conv_weights": reg_convergence.true_conv_weights,
+                    "x": reg_convergence.x,
+                    "y": reg_convergence.y,
+                    "conv_obj_log": conv_obj_log,
+                    "xonv_obj_log": xonv_obj_log,
+                    "args": args,
                 },
                 checkpoint_filepath,
             )
@@ -396,12 +407,10 @@ if __name__ == '__main__':
     for alpha, beta in conv_obj_log.keys():
         # Normalize logs
         conv_obj_log[(alpha, beta)] = [
-            obj / conv_obj_log[(alpha, beta)][0]
-            for obj in conv_obj_log[(alpha, beta)]
+            obj / conv_obj_log[(alpha, beta)][0] for obj in conv_obj_log[(alpha, beta)]
         ]
         xonv_obj_log[(alpha, beta)] = [
-            obj / xonv_obj_log[(alpha, beta)][0]
-            for obj in xonv_obj_log[(alpha, beta)]
+            obj / xonv_obj_log[(alpha, beta)][0] for obj in xonv_obj_log[(alpha, beta)]
         ]
 
         # Create plot
@@ -410,14 +419,14 @@ if __name__ == '__main__':
         plt.plot(
             np.arange(args.max_itrs),
             conv_obj_log[(alpha, beta)],
-            label='training loss: Conv2d',
+            label="training loss: Conv2d",
             color="orange",
             alpha=1.0,
         )
         plt.plot(
             np.arange(args.max_itrs),
             xonv_obj_log[(alpha, beta)],
-            label='training loss: Xonv2d',
+            label="training loss: Xonv2d",
             color="k",
             alpha=0.8,
         )
@@ -438,7 +447,7 @@ if __name__ == '__main__':
             format="png",
             bbox_inches="tight",
             dpi=400,
-            pad_inches=.02,
+            pad_inches=0.02,
         )
 
         plt.close(fig)

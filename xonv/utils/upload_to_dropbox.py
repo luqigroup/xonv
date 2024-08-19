@@ -1,6 +1,7 @@
-import subprocess
 import os
-from .project_path import gitdir, checkpointsdir, plotsdir
+import subprocess
+
+from .project_path import checkpointsdir, gitdir, plotsdir
 
 
 def upload_to_dropbox(args, flag: str = '--progress --transfers 8'):

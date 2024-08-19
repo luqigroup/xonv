@@ -8,24 +8,25 @@ loss landscapes for both conventional convolutional (Conv2d) and extended
 convolutional (Xonv2d) models in a regression setting.
 """
 
-from typing import Dict, Tuple, List, Optional
-import os
 import argparse
-from tqdm import tqdm
+import os
+from typing import Any, Dict, List, Tuple
+
 import torch
 from torch import Tensor
+from tqdm import tqdm
 
-from xonv.model import Conv2dRegressionModel, Xonv2dRegressionModel
 from xonv.loss_landscape import (
     filter_normalization,
-    update_parameters_dict,
     plot_loss_landscape,
+    update_parameters_dict,
 )
+from xonv.model import Conv2dRegressionModel, Xonv2dRegressionModel
 from xonv.utils import (
-    query_arguments,
+    checkpointsdir,
     make_experiment_name,
     process_sequence_arguments,
-    checkpointsdir,
+    query_arguments,
     upload_to_dropbox,
 )
 

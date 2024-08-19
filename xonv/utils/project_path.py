@@ -7,9 +7,10 @@ Typical usage example:
 checkpointsdir(experiment_name)
 """
 
-import git
 import os
 from typing import Optional
+
+import git
 
 
 def find_project_root(marker='setup.py') -> str:

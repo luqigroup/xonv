@@ -1,6 +1,6 @@
 import argparse
-import json
 import hashlib
+import json
 
 
 def shorten_filename(filename, max_length=255):

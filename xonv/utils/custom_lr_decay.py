@@ -1,8 +1,9 @@
 # Author: Ali Siahkoohi, alisk@rice.edu
 # Date: September 2022
 
-import torch
 from typing import Optional
+
+import torch
 
 
 class CustomLRScheduler(object):

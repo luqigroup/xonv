@@ -1,13 +1,12 @@
-from typing import Tuple
+import argparse
 import os
 
-import torch
-import numpy as np
-import argparse
-import seaborn as sns
+import colorcet as cc
 import matplotlib
 import matplotlib.pyplot as plt
-import colorcet as cc
+import numpy as np
+import seaborn as sns
+import torch
 
 from xonv.utils import plotsdir
 
