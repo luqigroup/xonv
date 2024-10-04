@@ -1,7 +1,7 @@
 {
     "experiment_name": "xonv-convergence",
     "max_itrs": 200,
-    "inner_max_itrs": 10,
+    "inner_max_itrs": 100,
     "batchsize": 1,
     "num_channels": 1,
     "kernel_size": 3,

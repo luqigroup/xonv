@@ -30,7 +30,7 @@ from xonv.utils import (
     upload_to_dropbox,
 )
 
-CONFIG_FILE: str = 'regression_loss_landscape_comparison.json'
+CONFIG_FILE: str = "regression_loss_landscape_comparison.json"
 
 
 class RegressionLossLandscape:
@@ -60,8 +60,10 @@ class RegressionLossLandscape:
         """
         # Set the device based on CUDA availability and input arguments
         self.device: torch.device = torch.device(
-            f'cuda:{args.gpu_id}'
-            if torch.cuda.is_available() and args.gpu_id > -1 else 'cpu')
+            f"cuda:{args.gpu_id}"
+            if torch.cuda.is_available() and args.gpu_id > -1
+            else "cpu"
+        )
 
         # Initialize the conventional convolutional model
         self.conv_model: Conv2dRegressionModel = Conv2dRegressionModel(
@@ -72,14 +74,17 @@ class RegressionLossLandscape:
 
         # Store the true weights of the convolutional model
         self.true_conv_weights: Dict[str, Tensor] = dict(
-            self.conv_model.named_parameters())
+            self.conv_model.named_parameters()
+        )
 
         # Generate input data and compute target output
-        self.x: Tensor = 1e-2 * torch.randn([
-            args.batchsize,
-            args.num_channels,
-            *args.input_size,
-        ]).to(self.device)
+        self.x: Tensor = 1e-2 * torch.randn(
+            [
+                args.batchsize,
+                args.num_channels,
+                *args.input_size,
+            ]
+        ).to(self.device)
         self.y: Tensor = self.conv_model(self.x)
 
     def conv_regression_loss(self, conv_weights: Dict[str, Tensor]) -> Tensor:
@@ -101,7 +106,7 @@ class RegressionLossLandscape:
         )
 
         # Compute and return the mean squared error loss
-        loss: Tensor = 0.5 * torch.norm(self.y - y_hat)**2
+        loss: Tensor = 0.5 * torch.norm(self.y - y_hat) ** 2
         return loss.detach()
 
     def xonv_regression_loss(
@@ -140,15 +145,18 @@ class RegressionLossLandscape:
 
             # Compute the penalty term (L2 distance between Xonv and Conv
             # weights)
-            penalty: Tensor = sum(args.gamma * torch.norm(xparam - param)**2
-                                  for xparam, param in zip(
-                                      xonv_model.parameters(),
-                                      conv_weights.values(),
-                                  ))
+            penalty: Tensor = sum(
+                args.gamma * torch.norm(xparam - param) ** 2
+                for xparam, param in zip(
+                    xonv_model.parameters(),
+                    conv_weights.values(),
+                )
+            )
 
             # Compute the total loss (MSE + penalty)
-            loss: Tensor = 0.5 * torch.norm(self.y -
-                                            xonv_model(self.x))**2 + penalty
+            loss: Tensor = (
+                0.5 * torch.norm(self.y - xonv_model(self.x)) ** 2 + penalty
+            )
 
             # Compute gradients and update parameters
             xgrads: List[Tensor] = torch.autograd.grad(
@@ -193,15 +201,15 @@ class RegressionLossLandscape:
         # Compute the loss landscape
         for i, alpha in enumerate(tqdm(param_grid)):
             for j, beta in enumerate(param_grid):
-                updated_params_dict: Dict[str,
-                                          Tensor] = update_parameters_dict(
-                                              self.true_conv_weights,
-                                              norm_rand_dirs,
-                                              alpha,
-                                              beta,
-                                          )
+                updated_params_dict: Dict[str, Tensor] = update_parameters_dict(
+                    self.true_conv_weights,
+                    norm_rand_dirs,
+                    alpha,
+                    beta,
+                )
                 loss_landscape[i, j] = self.conv_regression_loss(
-                    updated_params_dict)
+                    updated_params_dict
+                )
 
         return loss_landscape
 
@@ -236,13 +244,12 @@ class RegressionLossLandscape:
         # Compute the loss landscape
         for i, alpha in enumerate(tqdm(param_grid)):
             for j, beta in enumerate(param_grid):
-                updated_params_dict: Dict[str,
-                                          Tensor] = update_parameters_dict(
-                                              self.true_conv_weights,
-                                              norm_rand_dirs,
-                                              alpha,
-                                              beta,
-                                          )
+                updated_params_dict: Dict[str, Tensor] = update_parameters_dict(
+                    self.true_conv_weights,
+                    norm_rand_dirs,
+                    alpha,
+                    beta,
+                )
                 loss_landscape[i, j] = self.xonv_regression_loss(
                     args,
                     updated_params_dict,
@@ -270,27 +277,27 @@ class RegressionLossLandscape:
             ValueError: If checkpoint does not exist.
         """
         if os.path.isfile(filepath):
-            if self.device == torch.device(type='cpu'):
+            if self.device == torch.device(type="cpu"):
                 checkpoint: Dict[str, Any] = torch.load(
                     filepath,
-                    map_location='cpu',
+                    map_location="cpu",
                 )
             else:
                 checkpoint: Dict[str, Any] = torch.load(filepath)
 
-            self.x = checkpoint['x']
-            self.y = checkpoint['y']
-            self.true_conv_weights = checkpoint['true_conv_weights']
-            conv_loss_landscape: Tensor = checkpoint['conv_loss_landscape']
-            xonv_loss_landscape: Tensor = checkpoint['xonv_loss_landscape']
+            self.x = checkpoint["x"]
+            self.y = checkpoint["y"]
+            self.true_conv_weights = checkpoint["true_conv_weights"]
+            conv_loss_landscape: Tensor = checkpoint["conv_loss_landscape"]
+            xonv_loss_landscape: Tensor = checkpoint["xonv_loss_landscape"]
 
         else:
-            raise ValueError('Checkpoint does not exist.')
+            raise ValueError("Checkpoint does not exist.")
 
         return conv_loss_landscape, xonv_loss_landscape
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Read input arguments from a JSON file and process them
     args: argparse.Namespace = query_arguments(CONFIG_FILE)[0]
     args.experiment = make_experiment_name(args)
@@ -298,7 +305,7 @@ if __name__ == '__main__':
 
     checkpoint_filepath: str = os.path.join(
         checkpointsdir(args.experiment),
-        'loss_landscapes.pth',
+        "loss_landscapes.pth",
     )
 
     # Set random seed for reproducibility
@@ -308,23 +315,25 @@ if __name__ == '__main__':
     # Initialize the RegressionLossLandscape object
     reg_landscape: RegressionLossLandscape = RegressionLossLandscape(args)
 
-    if args.phase == 'compute':
+    if args.phase == "compute":
         if not os.path.exists(checkpoint_filepath):
             # Compute the loss landscapes for both models
-            conv_loss_landscape: Tensor = reg_landscape.compute_conv_loss_landscape(
-                args)
-            xonv_loss_landscape: Tensor = reg_landscape.compute_xonv_loss_landscape(
-                args)
+            conv_loss_landscape: Tensor = (
+                reg_landscape.compute_conv_loss_landscape(args)
+            )
+            xonv_loss_landscape: Tensor = (
+                reg_landscape.compute_xonv_loss_landscape(args)
+            )
 
             # Save the results
             torch.save(
                 {
-                    'true_conv_weights': reg_landscape.true_conv_weights,
-                    'x': reg_landscape.x,
-                    'y': reg_landscape.y,
-                    'conv_loss_landscape': conv_loss_landscape,
-                    'xonv_loss_landscape': xonv_loss_landscape,
-                    'args': args,
+                    "true_conv_weights": reg_landscape.true_conv_weights,
+                    "x": reg_landscape.x,
+                    "y": reg_landscape.y,
+                    "conv_loss_landscape": conv_loss_landscape,
+                    "xonv_loss_landscape": xonv_loss_landscape,
+                    "args": args,
                 },
                 checkpoint_filepath,
             )
@@ -339,12 +348,12 @@ if __name__ == '__main__':
     plot_loss_landscape(
         args,
         conv_loss_landscape,
-        fig_name_extension="Conv2d",
+        fig_name_extension="Regular conv.",
     )
     plot_loss_landscape(
         args,
         xonv_loss_landscape,
-        fig_name_extension="Xonv2d",
+        fig_name_extension="Extended conv.",
     )
 
     # Upload results to Dropbox if specified

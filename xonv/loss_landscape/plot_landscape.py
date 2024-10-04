@@ -11,8 +11,8 @@ import torch
 from xonv.utils import plotsdir
 
 sns.set_style("whitegrid")
-font = {'family': 'serif', 'style': 'normal', 'size': 10}
-matplotlib.rc('font', **font)
+font = {"family": "serif", "style": "normal", "size": 10}
+matplotlib.rc("font", **font)
 sfmt = matplotlib.ticker.ScalarFormatter(useMathText=True)
 sfmt.set_powerlimits((0, 0))
 matplotlib.use("Agg")
@@ -23,7 +23,6 @@ def plot_loss_landscape(
     loss_landscape: torch.Tensor,
     fig_name_extension: str = "",
 ):
-
     argmin_index = torch.argmin(loss_landscape)
     row, col = divmod(argmin_index.item(), loss_landscape.size(1))
     param_grid = torch.linspace(
@@ -31,8 +30,22 @@ def plot_loss_landscape(
         args.vis_res,
     )
 
-    fig = plt.figure(figsize=(5, 5))
-    plt.imshow(
+    fig, ax = plt.subplots(figsize=(5, 5))
+    ax.contour(
+        np.linspace(
+            args.vis_range[0], args.vis_range[1], loss_landscape.shape[1]
+        ),
+        np.linspace(
+            args.vis_range[0], args.vis_range[1], loss_landscape.shape[0]
+        ),
+        loss_landscape.numpy()[::-1, :],
+        levels=50,
+        extent=[*args.vis_range, *args.vis_range],
+        colors="black",
+        alpha=0.5,
+        linewidths=0.7,
+    )
+    image = ax.imshow(
         loss_landscape,
         resample=True,
         interpolation="nearest",
@@ -42,65 +55,34 @@ def plot_loss_landscape(
         extent=[*args.vis_range, *args.vis_range],
         norm=matplotlib.colors.LogNorm(),
     )
-    plt.colorbar(fraction=0.047, pad=0.01, format=sfmt)
-    plt.scatter(
-        param_grid[col],
-        param_grid[row],
-        c="red",
-        marker="*",
-        s=7.5,
-        label="Minimizer",
-    )
-    plt.title("Loss landscape: " + fig_name_extension)
-    plt.legend(loc="upper right")
+    # plt.scatter(
+    #     param_grid[col],
+    #     param_grid[row],
+    #     c="red",
+    #     marker="*",
+    #     s=7.5,
+    #     label="Minimizer",
+    # )
     plt.grid(False)
-    plt.xlabel(r"$\alpha$")
-    plt.ylabel(r"$\beta$")
-    plt.savefig(
-        os.path.join(
-            plotsdir(args.experiment),
-            'loss_landscape_' + fig_name_extension + '.png',
-        ),
-        format="png",
-        bbox_inches="tight",
-        dpi=600,
-        pad_inches=.02,
-    )
-    plt.close(fig)
+    cbar = fig.colorbar(image, ax=ax, fraction=0.0473, pad=0.01, format=sfmt)
+    # Optionally, change the font size of the colorbar label
+    # Set the font size for the colorbar labels
+    cbar.ax.tick_params(labelsize=10)
+    # plt.legend(loc="upper right", fontsize=12)
+    ax.set_title("Loss landscape: " + fig_name_extension, fontsize=15)
+    # ax.set_xlabel(r"$\alpha$")
+    # ax.set_ylabel(r"$\beta$")
+    plt.xticks(fontsize=11)
+    plt.yticks(fontsize=11)
 
-    fig, ax = plt.subplots(figsize=(5, 5))
-    contour = ax.contour(
-        np.linspace(args.vis_range[0], args.vis_range[1],
-                    loss_landscape.shape[1]),
-        np.linspace(args.vis_range[0], args.vis_range[1],
-                    loss_landscape.shape[0]),
-        loss_landscape.numpy()[::-1, :],
-        levels=50,
-        extent=[*args.vis_range, *args.vis_range],
-        cmap=cc.cm["linear_protanopic_deuteranopic_kbw_5_98_c40"],
-    )
-    plt.scatter(
-        param_grid[col],
-        param_grid[row],
-        c="red",
-        marker="*",
-        s=7.5,
-        label="Minimizer",
-    )
-    plt.grid(False)
-    fig.colorbar(contour, ax=ax, fraction=0.05, pad=0.01, format=sfmt)
-    plt.legend(loc="upper right")
-    ax.set_title("Loss landscape: " + fig_name_extension)
-    ax.set_xlabel(r"$\alpha$")
-    ax.set_ylabel(r"$\beta$")
     plt.savefig(
         os.path.join(
             plotsdir(args.experiment),
-            'loss_landscape_contourf_' + fig_name_extension + '.png',
+            "loss_landscape_contourf_" + fig_name_extension + ".png",
         ),
         format="png",
         bbox_inches="tight",
         dpi=300,
-        pad_inches=.02,
+        pad_inches=0.02,
     )
     plt.close(fig)

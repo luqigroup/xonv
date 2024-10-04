@@ -36,7 +36,7 @@ from xonv.utils import (
 
 # Set up Seaborn and Matplotlib configurations
 sns.set_style("whitegrid")
-font = {"family": "serif", "style": "normal", "size": 10}
+font = {"family": "serif", "style": "normal", "size": 8}
 matplotlib.rc("font", **font)
 sfmt = matplotlib.ticker.ScalarFormatter(useMathText=True)
 sfmt.set_powerlimits((0, 0))
@@ -84,7 +84,9 @@ class RegressionConvergence:
         ).to(self.device)
 
         # Store the true weights of the convolutional model
-        self.true_conv_weights: Dict[str, Tensor] = dict(conv_model.named_parameters())
+        self.true_conv_weights: Dict[str, Tensor] = dict(
+            conv_model.named_parameters()
+        )
 
         # Generate input and target tensors
         self.x: Tensor = 1e-2 * torch.randn(
@@ -281,7 +283,7 @@ class RegressionConvergence:
                     xonv_optimizer.step()
                     xonv_model.zero_grad()
 
-                # Compute penalty for Conv model
+                # Compute penalty for conv. model
                 penalty: Tensor = sum(
                     args.gamma * torch.norm(xparam - param) ** 2
                     for xparam, param in zip(
@@ -290,7 +292,7 @@ class RegressionConvergence:
                     )
                 )
 
-                # Backward pass for Conv model
+                # Backward pass for conv. model
                 grads: List[Tensor] = torch.autograd.grad(
                     penalty,
                     conv_model.parameters(),
@@ -298,7 +300,7 @@ class RegressionConvergence:
                 for param, grad in zip(conv_model.parameters(), grads):
                     param.grad = grad
 
-                # Update Conv parameters
+                # Update conv. parameters
                 conv_optimizer.step()
                 conv_model.zero_grad()
 
@@ -312,7 +314,8 @@ class RegressionConvergence:
         args: argparse.Namespace,
         filepath: str,
     ) -> Tuple[
-        Dict[Tuple[float, float], List[float]], Dict[Tuple[float, float], List[float]]
+        Dict[Tuple[float, float], List[float]],
+        Dict[Tuple[float, float], List[float]],
     ]:
         """
         Load model checkpoint.
@@ -376,7 +379,7 @@ if __name__ == "__main__":
 
     if args.phase == "compute":
         if not os.path.exists(checkpoint_filepath):
-            # Compute convergence for Conv and Xonv models
+            # Compute convergence for conv. and Xonv models
             conv_obj_log: Dict[Tuple[float, float], List[float]] = (
                 reg_convergence.train_conv(args)
             )
@@ -403,54 +406,95 @@ if __name__ == "__main__":
         checkpoint_filepath,
     )
 
+    # Define colors for conv. and Xonv
+    conv_color = "blue"
+    xonv_color = "red"
+
+    # Define different line styles to differentiate (alpha, beta) pairs
+    # line_styles = ["-", "--", "-.", ":"]  # Solid, dashed, dash-dot, dotted
+    style_idx = 0  # Initialize index for line styles
+
+    # Create a single plot
+    fig, ax = plt.subplots(figsize=(6, 1.7))
+
     # Normalize and plot results
     for alpha, beta in conv_obj_log.keys():
         # Normalize logs
         conv_obj_log[(alpha, beta)] = [
-            obj / conv_obj_log[(alpha, beta)][0] for obj in conv_obj_log[(alpha, beta)]
+            obj / conv_obj_log[(alpha, beta)][0]
+            for obj in conv_obj_log[(alpha, beta)]
         ]
         xonv_obj_log[(alpha, beta)] = [
-            obj / xonv_obj_log[(alpha, beta)][0] for obj in xonv_obj_log[(alpha, beta)]
+            obj / xonv_obj_log[(alpha, beta)][0]
+            for obj in xonv_obj_log[(alpha, beta)]
         ]
 
-        # Create plot
-        fig = plt.figure("training logs", figsize=(7, 4))
-
-        plt.plot(
+        # Plot conv. logs using the same color but different line styles
+        ax.plot(
             np.arange(args.max_itrs),
             conv_obj_log[(alpha, beta)],
-            label="training loss: Conv2d",
-            color="orange",
-            alpha=1.0,
+            color=conv_color,
+            # linestyle=line_styles[style_idx % len(line_styles)],
+            alpha=0.5,
+            linewidth=0.9,
         )
-        plt.plot(
+
+        # Annotate conv. curve with (alpha, beta)
+        ax.text(
+            args.max_itrs - 15,  # Position near the end of the plot
+            conv_obj_log[(alpha, beta)][-1] - 0.04,  # Y-value at the end
+            f"({alpha}, {beta})",
+            color=conv_color,
+            fontsize=6,
+            verticalalignment="center",
+        )
+
+        # Plot Xonv logs using the same color but different line styles (no annotations here)
+        ax.plot(
             np.arange(args.max_itrs),
             xonv_obj_log[(alpha, beta)],
-            label="training loss: Xonv2d",
-            color="k",
-            alpha=0.8,
+            color=xonv_color,
+            # linestyle=line_styles[style_idx % len(line_styles)],
+            alpha=0.5,
+            linewidth=0.9,
         )
 
-        plt.ticklabel_format(axis="y", style="sci", useMathText=True)
+        # Increment line style index
+        style_idx += 1
 
-        plt.title("Training loss over training")
-        plt.ylabel("Normalized loss value")
-        plt.xlabel("Epochs")
-        plt.legend()
+    # Format the plot
+    ax.ticklabel_format(axis="y", style="sci", useMathText=True)
+    ax.set_title(
+        "Extended conv. converges in fewer iterations than regular conv.",
+        fontsize=8,
+    )
+    ax.set_ylabel("Normalized loss value")
+    ax.set_xlabel("Iterations")
+    plt.xlim([-1, args.max_itrs + 10])
 
-        # Save plot
-        plt.savefig(
-            os.path.join(
-                plotsdir(args.experiment),
-                f"log_alpha-{alpha}_beta-{beta}.png",
-            ),
-            format="png",
-            bbox_inches="tight",
-            dpi=400,
-            pad_inches=0.02,
-        )
+    # Simplified legend with only two entries (Conv2d a nd Xonv2d)
+    ax.legend(
+        ["Regular conv.", "Extended conv."],
+        loc="upper right",
+        ncol=2,
+        fontsize=7,
+    )
+    ax.grid(True)
+    plt.xticks(fontsize=6)
+    plt.yticks(fontsize=6)
+    # Save the plot
+    plt.savefig(
+        os.path.join(
+            plotsdir(args.experiment),
+            "combined_training_loss_conv_annotations.png",
+        ),
+        format="png",
+        bbox_inches="tight",
+        dpi=400,
+        pad_inches=0.02,
+    )
 
-        plt.close(fig)
+    plt.close(fig)
 
     if args.upload_results:
         upload_to_dropbox(args)
