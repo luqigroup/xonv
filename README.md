@@ -88,6 +88,26 @@ To compare the loss landscape of the extended convolutional layer with the stand
 python scripts/regression_loss_landscape_comparison.py
 ```
 
+<div style="text-align: center;">
+  <img src="assets/loss_landscape_contourf_Regular conv..png" style="width: 49%;" />
+  <img src="assets/loss_landscape_contourf_Extended conv..png" style="width: 49%;" />
+</div>
+
+### Comparing convergence rate of `Xonv2d` vs `torch.nn.Conv2d` for a regression task
+
+To compare the convergence rate of the extended convolutional layer with
+the standard convolutional layer, run the following command:
+
+```bash
+python scripts/regression_convergence_comparison.py
+```
+
+
+<div align="center">
+  <img src="assets/combined_training_loss_conv_annotations.png" style="width: 85%;" />
+</div>
+
+
 
 ## Questions
 
