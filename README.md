@@ -31,7 +31,7 @@ version in `setup.cfg` to the one installed on your system.**
 
 ```bash
 # Create a new conda environment.
-conda create --name xonv python
+conda create --name xonv "python<=3.12"
 conda activate xonv
 
 # Clone the repository and install the package in editable mode.
