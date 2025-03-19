@@ -1,11 +1,11 @@
 # pylint: disable=E1102
 """
 This script compares convergence of extended and conventional
-convolutional layers in a regression context.
+1D convolutional layers in a regression context.
 
-It implements a class RegressionConvergence that computes and visualizes
-convergence for both conventional convolutional (Conv2d) and extended
-convolutional (Xonv2d) models in a regression setting.
+It implements a class RegressionConvergence1D that computes and visualizes
+convergence for both conventional convolutional (Conv1d) and extended
+convolutional (Xonv1d) models in a regression setting.
 """
 
 import argparse
@@ -20,11 +20,11 @@ import torch
 from torch import Tensor
 from tqdm import tqdm
 
+from xonv.layer import Xonv1D
 from xonv.loss_landscape import (
     filter_normalization,
     update_parameters_dict,
 )
-from xonv.model import Conv2dRegressionModel, Xonv2dRegressionModel
 from xonv.utils import (
     checkpointsdir,
     make_experiment_name,
@@ -42,15 +42,87 @@ sfmt = matplotlib.ticker.ScalarFormatter(useMathText=True)
 sfmt.set_powerlimits((0, 0))
 matplotlib.use("Agg")
 
-CONFIG_FILE: str = "regression_convergence_comparison.json"
+CONFIG_FILE: str = "regression_convergence_1d_comparison.json"
 
 
-class RegressionConvergence:
+class Conv1dRegressionModel(torch.nn.Module):
     """
-    Compares convergence of Conv2d and Xonv2d in a regression context.
+    A regression model using conventional 1D convolutional layers.
+
+    Args:
+        num_channels (int): Number of input and output channels.
+        kernel_size (int): Size of the convolutional kernel.
+        num_layers (int): Number of convolutional layers in the model.
+    """
+
+    def __init__(
+        self,
+        num_channels: int,
+        kernel_size: int,
+        num_layers: int,
+    ) -> None:
+        super(Conv1dRegressionModel, self).__init__()
+        self.layers = torch.nn.ModuleList()
+        for _ in range(num_layers):
+            self.layers.append(
+                torch.nn.Conv1d(
+                    num_channels,
+                    num_channels,
+                    kernel_size,
+                    padding=kernel_size // 2,
+                )
+            )
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Forward pass through the model."""
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+
+class Xonv1dRegressionModel(torch.nn.Module):
+    """
+    A regression model using extended 1D convolutional (Xonv1d) layers.
+
+    Args:
+        num_channels (int): Number of input and output channels.
+        kernel_size (int): Size of the convolutional kernel.
+        input_size (int): Size of the input.
+        num_layers (int): Number of convolutional layers in the model.
+    """
+
+    def __init__(
+        self,
+        num_channels: int,
+        kernel_size: int,
+        input_size: int,
+        num_layers: int,
+    ) -> None:
+        super(Xonv1dRegressionModel, self).__init__()
+        self.layers = torch.nn.ModuleList()
+        for _ in range(num_layers):
+            self.layers.append(
+                Xonv1D(
+                    num_channels,
+                    num_channels,
+                    kernel_size,
+                    input_size,
+                )
+            )
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Forward pass through the model."""
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+
+class RegressionConvergence1D:
+    """
+    Compares convergence of Conv1d and Xonv1d in a regression context.
 
     This class implements methods to compute and compare convergence for
-    conventional convolutional layers and extended convolutional (Xonv) layers.
+    conventional 1D convolutional layers and extended 1D convolutional (Xonv) layers.
 
     Attributes:
         device (torch.device): The device (cpu/cuda) used for computation.
@@ -64,7 +136,7 @@ class RegressionConvergence:
 
     def __init__(self, args: argparse.Namespace) -> None:
         """
-        Initialize the RegressionConvergence object.
+        Initialize the RegressionConvergence1D object.
 
         Args:
             args (argparse.Namespace): The command line arguments.
@@ -77,7 +149,7 @@ class RegressionConvergence:
         )
 
         # Initialize the conventional convolutional model
-        conv_model: Conv2dRegressionModel = Conv2dRegressionModel(
+        conv_model: Conv1dRegressionModel = Conv1dRegressionModel(
             args.num_channels,
             args.kernel_size,
             args.num_layers,
@@ -105,14 +177,14 @@ class RegressionConvergence:
         )
 
     def set_conv_model_weights(
-        self, weights: Dict[str, Tensor], conv_model: Conv2dRegressionModel
+        self, weights: Dict[str, Tensor], conv_model: Conv1dRegressionModel
     ) -> None:
         """
         Set the weights of the convolutional model.
 
         Args:
             weights (Dict[str, Tensor]): The weights to set.
-            conv_model (Conv2dRegressionModel): The model to update.
+            conv_model (Conv1dRegressionModel): The model to update.
         """
         for name, param in conv_model.named_parameters():
             param.data = weights[name].data
@@ -146,7 +218,7 @@ class RegressionConvergence:
             )
 
             # Initialize the convolutional model
-            conv_model: Conv2dRegressionModel = Conv2dRegressionModel(
+            conv_model: Conv1dRegressionModel = Conv1dRegressionModel(
                 args.num_channels,
                 args.kernel_size,
                 args.num_layers,
@@ -219,7 +291,7 @@ class RegressionConvergence:
             )
 
             # Initialize the convolutional model
-            conv_model: Conv2dRegressionModel = Conv2dRegressionModel(
+            conv_model: Conv1dRegressionModel = Conv1dRegressionModel(
                 args.num_channels,
                 args.kernel_size,
                 args.num_layers,
@@ -229,10 +301,10 @@ class RegressionConvergence:
             self.set_conv_model_weights(updated_params_dict, conv_model)
 
             # Initialize the extended convolutional model
-            xonv_model: Xonv2dRegressionModel = Xonv2dRegressionModel(
+            xonv_model: Xonv1dRegressionModel = Xonv1dRegressionModel(
                 args.num_channels,
                 args.kernel_size,
-                args.input_size,
+                args.input_size[0],
                 args.num_layers,
             ).to(self.device)
 
@@ -367,15 +439,15 @@ if __name__ == "__main__":
     # Set checkpoint filepath
     checkpoint_filepath: str = os.path.join(
         checkpointsdir(args.experiment),
-        "loss_objs.pth",
+        "loss_objs_1d.pth",
     )
 
     # Set random seeds for reproducibility
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
 
-    # Initialize RegressionConvergence object
-    reg_convergence: RegressionConvergence = RegressionConvergence(args)
+    # Initialize RegressionConvergence1D object
+    reg_convergence: RegressionConvergence1D = RegressionConvergence1D(args)
 
     if args.phase == "compute":
         if not os.path.exists(checkpoint_filepath):
@@ -411,7 +483,6 @@ if __name__ == "__main__":
     xonv_color = "red"
 
     # Define different line styles to differentiate (alpha, beta) pairs
-    # line_styles = ["-", "--", "-.", ":"]  # Solid, dashed, dash-dot, dotted
     style_idx = 0  # Initialize index for line styles
 
     # Create a single plot
@@ -434,7 +505,6 @@ if __name__ == "__main__":
             np.arange(args.max_itrs),
             conv_obj_log[(alpha, beta)],
             color=conv_color,
-            # linestyle=line_styles[style_idx % len(line_styles)],
             alpha=0.5,
             linewidth=0.9,
         )
@@ -449,12 +519,11 @@ if __name__ == "__main__":
             verticalalignment="center",
         )
 
-        # Plot Xonv logs using the same color but different line styles (no annotations here)
+        # Plot Xonv logs using the same color but different line styles
         ax.plot(
             np.arange(args.max_itrs),
             xonv_obj_log[(alpha, beta)],
             color=xonv_color,
-            # linestyle=line_styles[style_idx % len(line_styles)],
             alpha=0.5,
             linewidth=0.9,
         )
@@ -465,16 +534,16 @@ if __name__ == "__main__":
     # Format the plot
     ax.ticklabel_format(axis="y", style="sci", useMathText=True)
     ax.set_title(
-        "Extended conv. converges in fewer iterations than regular conv.",
+        "Extended 1D conv. converges in fewer iterations than regular 1D conv.",
         fontsize=8,
     )
     ax.set_ylabel("Normalized loss value")
     ax.set_xlabel("Iterations")
     plt.xlim([-1, args.max_itrs + 10])
 
-    # Simplified legend with only two entries (Conv2d a nd Xonv2d)
+    # Simplified legend with only two entries
     ax.legend(
-        ["Regular conv.", "Extended conv."],
+        ["Regular 1D conv.", "Extended 1D conv."],
         loc="upper right",
         ncol=2,
         fontsize=7,
@@ -482,11 +551,12 @@ if __name__ == "__main__":
     ax.grid(True)
     plt.xticks(fontsize=6)
     plt.yticks(fontsize=6)
+
     # Save the plot
     plt.savefig(
         os.path.join(
             plotsdir(args.experiment),
-            "combined_training_loss_conv_annotations.png",
+            "combined_training_loss_conv1d_annotations.png",
         ),
         format="png",
         bbox_inches="tight",
