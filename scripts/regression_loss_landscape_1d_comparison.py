@@ -1,11 +1,11 @@
 # pylint: disable=E1102
 """
 This script compares loss landscapes of extended and conventional
-convolutional layers in a regression context.
+1D convolutional layers in a regression context.
 
-It implements a class RegressionLossLandscape that computes and visualizes
-loss landscapes for both conventional convolutional (Conv2d) and extended
-convolutional (Xonv2d) models in a regression setting.
+It implements a class RegressionLossLandscape1D that computes and visualizes
+loss landscapes for both conventional convolutional (Conv1d) and extended
+convolutional (Xonv1d) models in a regression setting.
 """
 
 import argparse
@@ -16,12 +16,12 @@ import torch
 from torch import Tensor
 from tqdm import tqdm
 
+from xonv.layer import Xonv1D
 from xonv.loss_landscape import (
     filter_normalization,
     plot_loss_landscape,
     update_parameters_dict,
 )
-from xonv.model import Conv2dRegressionModel, Xonv2dRegressionModel
 from xonv.utils import (
     checkpointsdir,
     make_experiment_name,
@@ -30,20 +30,91 @@ from xonv.utils import (
     upload_to_dropbox,
 )
 
-CONFIG_FILE: str = "regression_loss_landscape_comparison.json"
+CONFIG_FILE: str = "regression_loss_landscape_1d_comparison.json"
 
 
-class RegressionLossLandscape:
+class Conv1dRegressionModel(torch.nn.Module):
     """
-    Compares loss landscapes of Conv2d and Xonv2d in a regression context.
+    A regression model using conventional 1D convolutional layers.
+
+    Args:
+        num_channels (int): Number of input and output channels.
+        kernel_size (int): Size of the convolutional kernel.
+        num_layers (int): Number of convolutional layers in the model.
+    """
+
+    def __init__(
+        self,
+        num_channels: int,
+        kernel_size: int,
+        num_layers: int,
+    ) -> None:
+        super(Conv1dRegressionModel, self).__init__()
+        self.layers = torch.nn.ModuleList()
+        for _ in range(num_layers):
+            self.layers.append(
+                torch.nn.Conv1d(
+                    num_channels,
+                    num_channels,
+                    kernel_size,
+                    padding=kernel_size // 2,
+                )
+            )
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Forward pass through the model."""
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+
+class Xonv1dRegressionModel(torch.nn.Module):
+    """
+    A regression model using extended 1D convolutional (Xonv1d) layers.
+
+    Args:
+        num_channels (int): Number of input and output channels.
+        kernel_size (int): Size of the convolutional kernel.
+        input_size (int): Size of the input.
+        num_layers (int): Number of convolutional layers in the model.
+    """
+
+    def __init__(
+        self,
+        num_channels: int,
+        kernel_size: int,
+        input_size: int,
+        num_layers: int,
+    ) -> None:
+        super(Xonv1dRegressionModel, self).__init__()
+        self.layers = torch.nn.ModuleList()
+        for _ in range(num_layers):
+            self.layers.append(
+                Xonv1D(
+                    num_channels,
+                    num_channels,
+                    kernel_size,
+                    input_size,
+                )
+            )
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Forward pass through the model."""
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+
+class RegressionLossLandscape1D:
+    """
+    Compares loss landscapes of Conv1d and Xonv1d in a regression context.
 
     This class implements methods to compute and compare loss landscapes for
-    conventional convolutional layers and extended convolutional (Xonv) layers.
+    conventional 1D convolutional layers and extended 1D convolutional (Xonv) layers.
 
     Attributes:
         device (torch.device): The device (cpu/cuda) used for computation.
-
-        conv_model (Conv2dRegressionModel): The conventional convolutional
+        conv_model (Conv1dRegressionModel): The conventional convolutional
             regression model.
         true_conv_weights (Dict[str, Tensor]): The true weights of the
             convolutional model.
@@ -53,7 +124,7 @@ class RegressionLossLandscape:
 
     def __init__(self, args: argparse.Namespace) -> None:
         """
-        Initialize the RegressionLossLandscape object.
+        Initialize the RegressionLossLandscape1D object.
 
         Args:
             args (argparse.Namespace): The command line arguments.
@@ -66,7 +137,7 @@ class RegressionLossLandscape:
         )
 
         # Initialize the conventional convolutional model
-        self.conv_model: Conv2dRegressionModel = Conv2dRegressionModel(
+        self.conv_model: Conv1dRegressionModel = Conv1dRegressionModel(
             args.num_channels,
             args.kernel_size,
             args.num_layers,
@@ -126,10 +197,10 @@ class RegressionLossLandscape:
             Tensor: The computed loss (mean squared error + penalty term).
         """
         # Initialize the Xonv model
-        xonv_model: Xonv2dRegressionModel = Xonv2dRegressionModel(
+        xonv_model: Xonv1dRegressionModel = Xonv1dRegressionModel(
             args.num_channels,
             args.kernel_size,
-            args.input_size,
+            args.input_size[0],
             args.num_layers,
         ).to(self.device)
 
@@ -305,15 +376,15 @@ if __name__ == "__main__":
 
     checkpoint_filepath: str = os.path.join(
         checkpointsdir(args.experiment),
-        "loss_landscapes.pth",
+        "loss_landscapes_1d.pth",
     )
 
     # Set random seed for reproducibility
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
 
-    # Initialize the RegressionLossLandscape object
-    reg_landscape: RegressionLossLandscape = RegressionLossLandscape(args)
+    # Initialize the RegressionLossLandscape1D object
+    reg_landscape: RegressionLossLandscape1D = RegressionLossLandscape1D(args)
 
     if args.phase == "compute":
         if not os.path.exists(checkpoint_filepath):
@@ -348,12 +419,12 @@ if __name__ == "__main__":
     plot_loss_landscape(
         args,
         conv_loss_landscape,
-        fig_name_extension="Regular conv.",
+        fig_name_extension="Regular 1D conv.",
     )
     plot_loss_landscape(
         args,
         xonv_loss_landscape,
-        fig_name_extension="Extended conv.",
+        fig_name_extension="Extended 1D conv.",
     )
 
     # Upload results to Dropbox if specified

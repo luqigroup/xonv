@@ -1,0 +1,17 @@
+{
+    "experiment_name": "xonv-loss-landscape",
+    "max_itrs": 200,
+    "batchsize": 1,
+    "num_channels": 1,
+    "kernel_size": 3,
+    "num_layers": 4,
+    "input_size": "256",
+    "lr": 0.001,
+    "gamma": 0.04,
+    "vis_res": 200,
+    "vis_range": "-10.0,10.0",
+    "gpu_id": 0,
+    "seed": 0,
+    "phase": "compute",
+    "upload_results": 1
+}
