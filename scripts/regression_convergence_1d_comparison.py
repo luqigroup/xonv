@@ -20,11 +20,12 @@ import torch
 from torch import Tensor
 from tqdm import tqdm
 
-from xonv.layer import Xonv1D
 from xonv.loss_landscape import (
     filter_normalization,
     update_parameters_dict,
 )
+
+from xonv.model import Conv1dRegressionModel, Xonv1dRegressionModel
 from xonv.utils import (
     checkpointsdir,
     make_experiment_name,
@@ -43,78 +44,6 @@ sfmt.set_powerlimits((0, 0))
 matplotlib.use("Agg")
 
 CONFIG_FILE: str = "regression_convergence_1d_comparison.json"
-
-
-class Conv1dRegressionModel(torch.nn.Module):
-    """
-    A regression model using conventional 1D convolutional layers.
-
-    Args:
-        num_channels (int): Number of input and output channels.
-        kernel_size (int): Size of the convolutional kernel.
-        num_layers (int): Number of convolutional layers in the model.
-    """
-
-    def __init__(
-        self,
-        num_channels: int,
-        kernel_size: int,
-        num_layers: int,
-    ) -> None:
-        super(Conv1dRegressionModel, self).__init__()
-        self.layers = torch.nn.ModuleList()
-        for _ in range(num_layers):
-            self.layers.append(
-                torch.nn.Conv1d(
-                    num_channels,
-                    num_channels,
-                    kernel_size,
-                    padding=kernel_size // 2,
-                )
-            )
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward pass through the model."""
-        for layer in self.layers:
-            x = layer(x)
-        return x
-
-
-class Xonv1dRegressionModel(torch.nn.Module):
-    """
-    A regression model using extended 1D convolutional (Xonv1d) layers.
-
-    Args:
-        num_channels (int): Number of input and output channels.
-        kernel_size (int): Size of the convolutional kernel.
-        input_size (int): Size of the input.
-        num_layers (int): Number of convolutional layers in the model.
-    """
-
-    def __init__(
-        self,
-        num_channels: int,
-        kernel_size: int,
-        input_size: int,
-        num_layers: int,
-    ) -> None:
-        super(Xonv1dRegressionModel, self).__init__()
-        self.layers = torch.nn.ModuleList()
-        for _ in range(num_layers):
-            self.layers.append(
-                Xonv1D(
-                    num_channels,
-                    num_channels,
-                    kernel_size,
-                    input_size,
-                )
-            )
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward pass through the model."""
-        for layer in self.layers:
-            x = layer(x)
-        return x
 
 
 class RegressionConvergence1D:
