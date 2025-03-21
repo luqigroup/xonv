@@ -4,7 +4,7 @@
     "batchsize": 1,
     "num_channels": 1,
     "kernel_size": 3,
-    "num_layers": 4,
+    "num_layers": 20,
     "input_size": "256",
     "lr": 0.001,
     "gamma": 0.04,
