@@ -283,7 +283,7 @@ class RegressionLossLandscape1D:
                     map_location="cpu",
                 )
             else:
-                checkpoint: Dict[str, Any] = torch.load(filepath)
+                checkpoint: Dict[str, Any] = torch.load(filepath, weights_only=False)
 
             self.x = checkpoint["x"]
             self.y = checkpoint["y"]

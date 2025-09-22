@@ -340,7 +340,7 @@ class RegressionConvergence1D:
                     map_location="cpu",
                 )
             else:
-                checkpoint: Dict[str, Any] = torch.load(filepath)
+                checkpoint: Dict[str, Any] = torch.load(filepath, weights_only=False)
 
             # Extract data from checkpoint
             self.x = checkpoint["x"]
