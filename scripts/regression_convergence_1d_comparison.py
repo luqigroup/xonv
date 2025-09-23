@@ -495,5 +495,3 @@ if __name__ == "__main__":
 
     plt.close(fig)
 
-    if args.upload_results:
-        upload_to_dropbox(args)

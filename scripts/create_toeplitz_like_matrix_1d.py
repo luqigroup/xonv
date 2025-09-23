@@ -151,5 +151,3 @@ if __name__ == "__main__":
     # Create and plot the Toeplitz-like matrix
     toeplitz_matrix = create_toeplitz_like_matrix()
     plot_toeplitz_matrix(toeplitz_matrix)
-
-# Fatima comments to test
