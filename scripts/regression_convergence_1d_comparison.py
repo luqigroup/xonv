@@ -340,7 +340,7 @@ class RegressionConvergence1D:
                     map_location="cpu",
                 )
             else:
-                checkpoint: Dict[str, Any] = torch.load(filepath)
+                checkpoint: Dict[str, Any] = torch.load(filepath, weights_only=False)
 
             # Extract data from checkpoint
             self.x = checkpoint["x"]
@@ -495,5 +495,3 @@ if __name__ == "__main__":
 
     plt.close(fig)
 
-    if args.upload_results:
-        upload_to_dropbox(args)
