@@ -18,11 +18,14 @@ import numpy as np
 import seaborn as sns
 import torch
 from torch import Tensor
+from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
+
 
 from xonv.loss_landscape import (
     filter_normalization,
     update_parameters_dict,
+    get_test_loss,
 )
 
 from xonv.model import Conv1dRegressionModel, Xonv1dRegressionModel
@@ -89,15 +92,39 @@ class RegressionConvergence1D:
             conv_model.named_parameters()
         )
 
-        # Generate input and target tensors
+        # Generate train_input and train_target tensors
         self.x: Tensor = 1e-2 * torch.randn(
             [
-                args.batchsize,
+                args.train_dataset_size,
                 args.num_channels,
                 *args.input_size,
             ]
         ).to(self.device)
         self.y: Tensor = conv_model(self.x)
+
+        # Generate test_input and test_target tensors
+        self.x_test: Tensor = 1e-2 * torch.randn(
+            [
+                args.test_dataset_size,
+                args.num_channels,
+                *args.input_size,
+            ]
+        ).to(self.device)
+        self.y_test: Tensor = conv_model(self.x_test)
+
+        # Setup Train DataLoader
+        self.dataloader = DataLoader(
+            TensorDataset(self.x, self.y),
+            batch_size = args.batchsize,
+            shuffle=True,
+        )
+
+        # Setup Test DataLoader
+        self.dataloader_test = DataLoader(
+            TensorDataset(self.x_test, self.y_test),
+            batch_size = args.batchsize,
+            shuffle=True,
+        )
 
         # Generate normalized random directions
         self.norm_rand_dirs: Tuple[Dict[str, Tensor], Dict[str, Tensor]] = (
@@ -120,7 +147,10 @@ class RegressionConvergence1D:
 
     def train_conv(
         self, args: argparse.Namespace
-    ) -> Dict[Tuple[float, float], List[float]]:
+    ) -> Tuple[
+        Dict[Tuple[float, float], List[float]],
+        Dict[Tuple[float, float], List[float]]
+        ]:
         """
         Train the conventional convolutional model and compute the objective log.
 
@@ -129,8 +159,17 @@ class RegressionConvergence1D:
 
         Returns:
             Dict[Tuple[float, float], List[float]]: The computed objective log.
+            Dict[Tuple[float, float], List[float]]: The computed validation/test log.
+
         """
         obj_log: Dict[Tuple[float, float], List[float]] = {
+            (args.vis_range[0], args.vis_range[0]): [],
+            (args.vis_range[0], args.vis_range[1]): [],
+            (args.vis_range[1], args.vis_range[0]): [],
+            (args.vis_range[1], args.vis_range[1]): [],
+        }
+
+        val_log: Dict[Tuple[float, float], List[float]] = {
             (args.vis_range[0], args.vis_range[0]): [],
             (args.vis_range[0], args.vis_range[1]): [],
             (args.vis_range[1], args.vis_range[0]): [],
@@ -169,27 +208,35 @@ class RegressionConvergence1D:
                 colour="#B5F2A9",
                 dynamic_ncols=True,
             ):
-                # Forward pass
-                y_hat: Tensor = conv_model(self.x)
-                loss: Tensor = 0.5 * torch.norm(self.y - y_hat) ** 2
+                batch_loss = 0.0
+                total_samples_per_epoch = 0
 
-                # Backward pass
-                conv_model.zero_grad()
-                grads: List[Tensor] = torch.autograd.grad(
-                    loss,
-                    conv_model.parameters(),
-                )
-                for param, grad in zip(conv_model.parameters(), grads):
-                    param.grad = grad
+                for xb, yb in self.dataloader:
+                    xb = xb.detach()  
+                    yb = yb.detach()
 
-                # Update parameters
-                conv_optimizer.step()
-                conv_model.zero_grad()
+                    # Forward pass
+                    y_hat: Tensor = conv_model(xb)
+                    loss: Tensor = 0.5 * torch.norm(yb - y_hat) ** 2
+                    
+                    # zero + backward + update 
+                    conv_model.zero_grad()
+                    loss.backward()
+                    conv_optimizer.step()
 
-                # Log the loss
-                obj_log[(alpha, beta)].append(loss.detach().item())
+                    # Track loss per batch during this epoch
+                    current_batch_size = xb.size(0)
+                    batch_loss += loss.detach().item() * current_batch_size
 
-        return obj_log
+                # Average by dataset size to get loss per epoch
+                epoch_loss = batch_loss/args.train_dataset_size
+                obj_log[(alpha, beta)].append(epoch_loss)
+
+                # get and plot test error
+                test_epoch_loss = get_test_loss(conv_model, self.dataloader_test)
+                val_log[(alpha, beta)].append(test_epoch_loss)
+
+        return obj_log, val_log
 
     def train_xonv(
         self, args: argparse.Namespace
@@ -317,6 +364,7 @@ class RegressionConvergence1D:
     ) -> Tuple[
         Dict[Tuple[float, float], List[float]],
         Dict[Tuple[float, float], List[float]],
+        Dict[Tuple[float, float], List[float]],
     ]:
         """
         Load model checkpoint.
@@ -349,6 +397,9 @@ class RegressionConvergence1D:
             conv_obj_log: Dict[Tuple[float, float], List[float]] = checkpoint[
                 "conv_obj_log"
             ]
+            conv_val_log: Dict[Tuple[float, float], List[float]] = checkpoint[
+                "conv_val_log"
+            ]
             xonv_obj_log: Dict[Tuple[float, float], List[float]] = checkpoint[
                 "xonv_obj_log"
             ]
@@ -356,7 +407,7 @@ class RegressionConvergence1D:
         else:
             raise ValueError("Checkpoint does not exist.")
 
-        return conv_obj_log, xonv_obj_log
+        return conv_obj_log, conv_val_log, xonv_obj_log
 
 
 if __name__ == "__main__":
@@ -381,7 +432,7 @@ if __name__ == "__main__":
     if args.phase == "compute":
         if not os.path.exists(checkpoint_filepath):
             # Compute convergence for conv. and Xonv models
-            conv_obj_log: Dict[Tuple[float, float], List[float]] = (
+            conv_obj_log, conv_val_log = (
                 reg_convergence.train_conv(args)
             )
             xonv_obj_log: Dict[Tuple[float, float], List[float]] = (
@@ -395,6 +446,7 @@ if __name__ == "__main__":
                     "x": reg_convergence.x,
                     "y": reg_convergence.y,
                     "conv_obj_log": conv_obj_log,
+                    "conv_val_log": conv_val_log,
                     "xonv_obj_log": xonv_obj_log,
                     "args": args,
                 },
@@ -402,7 +454,7 @@ if __name__ == "__main__":
             )
 
     # Load checkpoint
-    conv_obj_log, xonv_obj_log = reg_convergence.load_checkpoint(
+    conv_obj_log, conv_val_log, xonv_obj_log = reg_convergence.load_checkpoint(
         args,
         checkpoint_filepath,
     )
@@ -424,6 +476,11 @@ if __name__ == "__main__":
             obj / conv_obj_log[(alpha, beta)][0]
             for obj in conv_obj_log[(alpha, beta)]
         ]
+
+        conv_val_log[(alpha, beta)] = [
+            obj / conv_val_log[(alpha, beta)][0]
+            for obj in conv_val_log[(alpha, beta)]
+        ]
         xonv_obj_log[(alpha, beta)] = [
             obj / xonv_obj_log[(alpha, beta)][0]
             for obj in xonv_obj_log[(alpha, beta)]
@@ -436,6 +493,16 @@ if __name__ == "__main__":
             color=conv_color,
             alpha=0.5,
             linewidth=0.9,
+        )
+
+        # Plot conv. val logs using the same color but different line styles
+        ax.plot(
+            np.arange(args.max_itrs),
+            conv_val_log[(alpha, beta)],
+            color=conv_color,
+            alpha=0.5,
+            linewidth=0.9,
+            linestyle="--",
         )
 
         # Annotate conv. curve with (alpha, beta)
@@ -472,7 +539,7 @@ if __name__ == "__main__":
 
     # Simplified legend with only two entries
     ax.legend(
-        ["Regular 1D conv.", "Extended 1D conv."],
+        ["Conv Train", "Conv Val.", "Xonv Train"],
         loc="upper right",
         ncol=2,
         fontsize=7,

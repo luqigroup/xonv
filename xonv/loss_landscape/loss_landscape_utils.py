@@ -1,6 +1,7 @@
 from typing import Dict, Tuple
 
 import torch
+from torch.utils.data import DataLoader
 
 
 @torch.no_grad()
@@ -68,3 +69,43 @@ def update_parameters_dict(
         updated_params_dict[param_name] += rand_offset
 
     return updated_params_dict
+
+
+@torch.no_grad()
+def get_test_loss(
+    model: torch.nn.Module,
+    dataloader: DataLoader,
+) -> float:
+    """
+    Compute the average test loss for a model over a given dataloader.
+
+    Args:
+        model (torch.nn.Module): The model to evaluate.
+        dataloader (DataLoader): The dataloader providing (input, target) batches.
+
+    Returns:
+        float: The average test loss across the dataset.
+    """
+    model.eval()
+
+    total_loss: float = 0.0
+    total_samples: int = 0
+    device: torch.device = next(model.parameters()).device
+
+    for xb, yb in dataloader:
+        xb = xb.to(device)
+        yb = yb.to(device)
+
+        # Forward pass
+        y_hat: Tensor = model(xb)
+        loss: Tensor = 0.5 * torch.norm(yb - y_hat) ** 2
+
+        # Accumulate weighted loss
+        batch_size: int = xb.size(0)
+        total_loss += loss.item() * batch_size
+        total_samples += batch_size
+
+    avg_loss: float = total_loss / total_samples
+
+    model.train()
+    return avg_loss

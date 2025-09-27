@@ -7,6 +7,8 @@
     "kernel_size": 3,
     "num_layers": 20,
     "input_size": "256",
+    "train_dataset_size": 640,
+    "test_dataset_size": 128,
     "lr": 0.001,
     "gamma": 0.04,
     "vis_res": 200,
